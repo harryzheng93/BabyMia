@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">BabyMia</string>
+    <string name="title">vivo Live Photo 配对、预览与恢复测试</string>
+    <string name="description">上传原始 JPG + MP4 后，可在网页预览，也可从服务器下载、校验并通过 MediaStore 恢复到 DCIM/Camera/。</string>
+    <string name="select_live_photo">选择 Live Photo</string>
+    <string name="server_address">测试服务器地址</string>
+    <string name="server_address_hint">http://192.168.1.100:8000</string>
+    <string name="upload_live_photo">上传完整 Live Photo</string>
+    <string name="open_gallery">打开网页 Live Photo 预览</string>
+    <string name="load_server_items">加载服务器 Live Photo</string>
+    <string name="restore_live_photo">下载并恢复到 vivo 相册</string>
+    <string name="open_restored_photo">打开恢复后的照片</string>
+    <string name="initial_status">等待选择照片。</string>
+</resources>

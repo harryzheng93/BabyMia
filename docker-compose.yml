@@ -1,0 +1,24 @@
+services:
+  babymia:
+    build: .
+    container_name: babymia
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    environment:
+      PORT: "8095"
+      HOST: 0.0.0.0
+      DATA_DIR: /app/data
+      # VIDEO_DIR: /app/videos
+      AI_TIMEOUT_MS: "12000"
+      # AI_ENDPOINT: https://your-provider.example/v1/chat/completions
+      # AI_API_KEY: set-in-your-secret-store
+      # AI_MODEL: your-model-name
+    volumes:
+      - ./data:/app/data
+      # - ./videos:/app/videos
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8095/api/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

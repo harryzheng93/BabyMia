@@ -1,0 +1,94 @@
+[
+  {
+    "title": "小船去看月亮",
+    "subtitle": "原创 · 一次寻找倒影的夜航，有出发、发现和回家",
+    "segments": [
+      {
+        "zh": "傍晚，河边的小船听见青蛙唱起了歌。岸上的灯一盏盏亮起来，船头也挂着一盏小黄灯。小船望着水里那个圆圆的亮影子，问：“月亮，你怎么掉进河里啦？我来送你回家吧。”",
+        "en": "At dusk, a little boat heard the frogs begin their song. Lamps came on along the bank, and a small yellow lantern glowed at her bow. She looked at a round light in the river. “Moon, have you fallen into the water? I will help you get home.”",
+        "prompt": "轻声模仿青蛙叫，然后停下来，看看宝宝会不会回应。"
+      },
+      {
+        "zh": "小船轻轻离开岸边。她向前划一下，水里的月亮也向前走一下；她停下来，月亮也安安静静地停下来。“你是在跟着我吗？”小船把声音放得很轻，生怕吓着这位新朋友。",
+        "en": "The boat slipped away from the bank. When she moved forward, the moon in the water moved too. When she stopped, it stopped beside her. “Are you following me?” she whispered. She did not want to frighten her new friend.",
+        "prompt": "用手掌做慢慢前进、停下的动作；宝宝不感兴趣就继续讲。"
+      },
+      {
+        "zh": "芦苇丛里钻出一只小鸭。“你找什么呀？”小鸭问。“我想找到月亮的家。”小船说。小鸭抬起头，看了看天，又低头看了看水：“也许你可以问问桥上的猫头鹰，他每晚都醒着。”",
+        "en": "A duck came out of the reeds. “What are you looking for?” he asked. “I am looking for the moon’s home,” said the boat. The duck looked up at the sky and down at the water. “Perhaps you can ask the owl on the bridge. He is awake every night.”",
+        "prompt": "稍微换一种声音说小鸭的台词，让对话有来有回。"
+      },
+      {
+        "zh": "桥洞下面有一圈一圈的小波纹。风来了，把水里的月亮吹成好多片。小船着急起来：“哎呀，月亮碎了！”她赶紧停住，不敢再划，连船头的小灯也跟着轻轻晃了一下。",
+        "en": "Little ripples spread beneath the bridge. A breeze broke the moon’s reflection into shimmering pieces. “Oh no! The moon is broken!” cried the boat. She stopped at once. Even the lantern at her bow gave a tiny wobble.",
+        "prompt": "把“着急”讲得轻一些，不突然提高音量。"
+      },
+      {
+        "zh": "猫头鹰从桥上探出头：“先别急，抬头看看。”小船向上看，圆圆的月亮还好好地挂在天上。猫头鹰说：“水里的亮光是她的倒影。风把河水吹皱了，可没有把月亮弄坏。”",
+        "en": "The owl leaned over the bridge. “Take your time. Look up,” he said. The boat looked up and saw the whole moon shining in the sky. “The light in the river is her reflection,” explained the owl. “The wind has ruffled the water, but the moon is quite all right.”",
+        "prompt": "大一点的孩子可以一起找亮的、圆的东西；小宝宝只听声音就好。"
+      },
+      {
+        "zh": "风慢慢停了。碎碎的亮光重新聚在一起，月亮又变得圆圆的。小船试着轻轻划了一下，看着水纹散开，再安静地等它们合上。原来有些事情不用着急，等一等，就能看清楚。",
+        "en": "The breeze faded. The scattered lights came together, and the reflection became round again. The boat made one gentle stroke. She watched the ripples spread, then waited as the water grew still. Sometimes, she discovered, waiting helped her see more clearly.",
+        "prompt": "说完“等一等”真的停顿一下，留一点安静。"
+      },
+      {
+        "zh": "“原来你一直在家呀。”小船对天上的月亮说。小鸭陪她游回芦苇边，猫头鹰在桥上挥了挥翅膀。小船不再忙着追那个亮影子，只让小灯照着眼前的路，一点一点回到熟悉的岸边。",
+        "en": "“You were home all along,” the boat said to the moon above. The duck swam beside her to the reeds, and the owl waved a wing from the bridge. The boat no longer chased the bright reflection. Her lantern lit the way, a little at a time, back to the familiar bank.",
+        "prompt": "轻轻挥手说再见；不要求宝宝跟着完成动作。"
+      },
+      {
+        "zh": "船绳系好了，河水拍着船边，像一首慢慢的歌。小船说：“晚安，小鸭。晚安，猫头鹰。晚安，月亮。”月亮在天上亮着，也在水里亮着。小船闭上眼睛，知道明晚她还会在这里。",
+        "en": "The boat was tied safely to the bank. Water tapped against her side like a slow song. “Good night, Duck. Good night, Owl. Good night, Moon.” The moon shone in the sky and in the water. The boat closed her eyes, knowing her friend would be there tomorrow.",
+        "prompt": "放慢最后几句。宝宝困了就结束共读，不必读完两种语言。"
+      }
+    ]
+  },
+  {
+    "title": "云朵的口袋",
+    "subtitle": "原创 · 一颗种子和一只小蜗牛，慢慢等来春天",
+    "segments": [
+      {
+        "zh": "春天的早晨，一朵小白云飘过花园。她的口袋里装着一颗棕色的小种子。风问：“你为什么不把它放下来？”小白云说：“我还没有找到合适的地方。我想让它醒来时，看见一个温柔的家。”",
+        "en": "One spring morning, a small white cloud drifted over a garden. In her pocket was a brown seed. “Why not put it down?” asked the wind. “I have not found the right place,” said the cloud. “I want it to wake up in a gentle home.”",
+        "prompt": "用很轻的吹气声表现风，不朝宝宝脸上吹。"
+      },
+      {
+        "zh": "她看见石头路，也看见干干的沙地。最后，在篱笆旁边，她发现一小块松软的泥土。一只蜗牛正背着壳慢慢走过。“这里有阳光，也有树荫。”蜗牛说，“如果种子住在这里，我可以常来看看它。”",
+        "en": "She saw a stone path and a patch of dry sand. Beside a fence, she finally found some soft soil. A snail was passing with his little shell. “There is sunshine here, and shade too,” he said. “If the seed lives here, I can visit.”",
+        "prompt": "用手指在自己的掌心慢慢走，配合蜗牛的节奏。"
+      },
+      {
+        "zh": "小白云轻轻打开口袋，种子落进泥土的小窝里。蜗牛用一片落叶给它挡住太大的风。花园突然安静下来，什么也没有冒出来。“它是不是忘记醒了？”风在篱笆外小声问。",
+        "en": "The cloud opened her pocket, and the seed settled into a small hollow in the soil. The snail placed a fallen leaf nearby to shelter it from the strong wind. The garden became quiet. Nothing appeared. “Has it forgotten to wake up?” whispered the wind beyond the fence.",
+        "prompt": "停顿一下。大孩子可以猜接下来会发生什么，小宝宝无需回答。"
+      },
+      {
+        "zh": "“我们等等看。”蜗牛说。小白云挤出几滴细细的雨，太阳也从树叶间送来暖暖的光。一天过去，两天过去。地下，小种子正悄悄伸出一条细根，抓住这个新家，只是大家还看不见。",
+        "en": "“Let us wait,” said the snail. The cloud sent a few soft drops of rain, and the sun warmed the soil through the leaves. One day passed, then another. Under the ground, the seed was quietly growing a slender root. Its friends simply could not see it yet.",
+        "prompt": "用指尖在自己手心点几下，模拟细雨；避免突然拍响。"
+      },
+      {
+        "zh": "第三个清晨，蜗牛发现泥土鼓起了一点点。一弯小绿芽顶着一粒土，慢慢探出头来。“早上好！”蜗牛高兴地说。小芽没有说话，只把弯弯的身子向着光，伸直了一小点。",
+        "en": "On the third morning, the snail noticed a tiny bump in the soil. A curved green shoot slowly appeared with a speck of earth on its head. “Good morning!” said the snail. The shoot did not answer. It simply stretched a little toward the light.",
+        "prompt": "轻轻说“早上好”，等宝宝看你或发声后再回应。"
+      },
+      {
+        "zh": "午后，风又来了。小芽晃了晃，蜗牛有些担心。小白云说：“我们陪着它，不用一直催它长高。”风听见了，便绕到篱笆后面，把脚步放轻。小芽在软软的阳光里，又展开了一片叶子。",
+        "en": "The wind returned in the afternoon. The shoot swayed, and the snail looked worried. “We can stay beside it without hurrying it to grow,” said the cloud. The wind stepped behind the fence and moved more gently. In the soft sunshine, the shoot opened another leaf.",
+        "prompt": "把语速放慢；“陪着它”可以配合一个温柔的拥抱。"
+      },
+      {
+        "zh": "许多天以后，两片叶子中间冒出一个小花苞。蜗牛每天来打招呼，有时讲石头路上的见闻，有时只是坐一会儿。花苞终于打开了，是一朵小小的黄花，颜色像太阳留在花园里的一封信。",
+        "en": "Many days later, a bud appeared between the leaves. The snail visited each day. Sometimes he told stories about the stone path; sometimes he simply stayed a while. At last the bud opened into a small yellow flower, like a letter of sunshine left in the garden.",
+        "prompt": "可以指一指纸质绘本或身边的黄色物品，不需要让宝宝盯屏幕。"
+      },
+      {
+        "zh": "小白云摸摸空空的口袋，笑了。种子没有不见，它变成了根、叶子和花，也变成了蜗牛每天期待的朋友。晚风经过时，黄花轻轻点头。花园里没有谁催谁，大家都在自己的时间里，慢慢长大。",
+        "en": "The cloud touched her empty pocket and smiled. The seed was not lost. It had become roots, leaves, and a flower—and a friend the snail looked forward to seeing. As the evening breeze passed, the flower nodded gently. In the garden, everyone grew in their own time.",
+        "prompt": "最后安静地抱一会儿。共读不设记忆或翻译任务。"
+      }
+    ]
+  }
+]
