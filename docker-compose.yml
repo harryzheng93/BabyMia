@@ -1,6 +1,9 @@
 services:
   babymia:
-    build: .
+    build:
+      context: .
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-m.daocloud.io/docker.io/library/node:22.23.1-bookworm-slim}
     container_name: babymia
     restart: unless-stopped
     ports:
@@ -22,3 +25,4 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+

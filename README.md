@@ -24,14 +24,21 @@ Docker / NAS 使用现有 ./data:/app/data 映射时，把 MP4 放入 NAS 数据
 
 ## Docker / NAS
 
-在有 Docker 的机器执行构建并导出镜像：
+`docker-compose.yml` 默认通过 DaoCloud 国内代理拉取 Node 22 基础镜像，直接执行：
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+如需临时切回 Docker Hub，可在构建前设置 `NODE_IMAGE=node:22.23.1-bookworm-slim`。在有 Docker 的机器构建并导出镜像：
 
 ```powershell
 docker build -t babymia:3.6.0 .
-docker save babymia:3.6.0 -o babymia-3.0.0.tar
+docker save babymia:3.6.0 -o babymia-3.6.0.tar
 ```
 
-在 NAS Container Station 导入 `babymia-3.0.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并使用 `docker-compose.yml`（把 `build: .` 改为 `image: babymia:3.6.0`）启动；映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
+在 NAS Container Station 导入 `babymia-3.6.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.6.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
 
 AI 摘要默认关闭。需要时在服务器环境变量配置兼容 Chat Completions 的 `AI_ENDPOINT`、`AI_API_KEY` 和 `AI_MODEL`；endpoint 只接受 HTTPS，HTTP 仅允许本机 mock。密钥只在服务端使用，页面只显示 endpoint 主机和模型。每次摘要都先由家庭成员选择范围和类型并预览，点击“手动生成”后才发送同一份脱敏快照；不自动外发、不发送姓名、署名、备注或成长/疫苗/辅食记录。未配置、超时或返回错误时显示明确状态，不伪造摘要。
 
@@ -72,4 +79,5 @@ npm run check
 故事实际存于 DATA_DIR 下的 babymia.sqlite，并纳入设置页的完整备份。reference/starter-stories.json 仅首次初始化两篇原有故事；之后升级不会覆盖修改，也不会重新添加已删除的故事。public/companion-content.js 仅保存月龄活动内容。
 
 本次升级需要重启 Node 服务；Docker 部署需使用包含 story-store.mjs 和 reference/starter-stories.json 的新版镜像。数据卷路径保持原值。
+
 
