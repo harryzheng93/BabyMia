@@ -21,6 +21,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -29,12 +30,17 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import android.view.View
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var rootView: FrameLayout
     private lateinit var webView: WebView
+    private var fullscreenView: View? = null
+    private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private val preferences by lazy { getSharedPreferences("babymia", Context.MODE_PRIVATE) }
     private var baseUrl: String = ""
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -78,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
+        rootView = findViewById(R.id.babyMiaRoot)
         webView = findViewById(R.id.babyMiaWeb)
         ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -93,6 +100,14 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
         webView.addJavascriptInterface(NativeBridge(), "BabyMiaNative")
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowCustomView(view: View, callback: WebChromeClient.CustomViewCallback) {
+                showFullscreenVideo(view, callback)
+            }
+
+            override fun onHideCustomView() {
+                hideFullscreenVideo()
+            }
+
             override fun onShowFileChooser(
                 webView: WebView,
                 callback: ValueCallback<Array<Uri>>,
@@ -141,7 +156,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
+        if (fullscreenView != null) hideFullscreenVideo()
+        else if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
+        else super.onBackPressed()
+    }
+
+    private fun showFullscreenVideo(view: View, callback: WebChromeClient.CustomViewCallback) {
+        if (fullscreenView != null) {
+            callback.onCustomViewHidden()
+            return
+        }
+        fullscreenView = view
+        fullscreenCallback = callback
+        webView.visibility = View.GONE
+        rootView.addView(
+            view,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        WindowInsetsControllerCompat(window, rootView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    private fun hideFullscreenVideo() {
+        val view = fullscreenView ?: return
+        rootView.removeView(view)
+        fullscreenView = null
+        fullscreenCallback?.onCustomViewHidden()
+        fullscreenCallback = null
+        webView.visibility = View.VISIBLE
+        WindowInsetsControllerCompat(window, rootView).show(WindowInsetsCompat.Type.systemBars())
+        ViewCompat.requestApplyInsets(webView)
     }
 
     inner class NativeBridge {
