@@ -68,13 +68,13 @@ jobs:
       - name: Verify release signature
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android-app/app/build/outputs/apk/release/app-release.apk
-          cp android-app/app/build/outputs/apk/release/app-release.apk BabyMia-3.9-release.apk
+          cp android-app/app/build/outputs/apk/release/app-release.apk BabyMia-3.10-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BabyMia-3.9-release-apk
-          path: BabyMia-3.9-release.apk
+          name: BabyMia-3.10-release-apk
+          path: BabyMia-3.10-release.apk
           if-no-files-found: error
           retention-days: 14
 

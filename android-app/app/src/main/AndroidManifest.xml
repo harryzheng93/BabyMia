@@ -18,6 +18,7 @@
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize"
             android:screenOrientation="unspecified"
             android:exported="true">
             <intent-filter>

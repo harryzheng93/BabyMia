@@ -16,8 +16,8 @@ android {
         applicationId = "com.harryzheng.babymia"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "3.9"
+        versionCode = 10
+        versionName = "3.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
