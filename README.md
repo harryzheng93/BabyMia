@@ -48,7 +48,7 @@ BabyMia 是一个面向家庭共同照护的手机优先育儿工作台。它把
 - 使用 SQLite 持久化记录，自动保留最近 7 份数据库快照。
 - 支持 JSON 导出与恢复；恢复前会先保存当前数据库快照。
 - 支持 Node.js 直接运行以及 Docker / NAS 部署，默认使用国内镜像代理。
-- 提供 Android APK 的 GitHub Actions 在线构建流程。
+- 提供固定签名的 Android Release APK 在线构建，并由 NAS 自动缓存最新版本；App 启动时检查更新并在用户确认后下载。
 - 家庭口令使用 scrypt 加盐散列，并包含会话保护、写入幂等和编辑版本冲突检测。
 
 ## 本机运行
@@ -71,6 +71,8 @@ Docker / NAS 使用现有 ./data:/app/data 映射时，把 MP4 放入 NAS 数据
 
 `android-app/` 是统一的 BabyMia Android 应用：界面仍使用当前网页，原生层通过 MediaStore 找到 vivo Live Photo 的原始 JPG + MP4，携带当前登录会话上传。服务端再次核对双方 28 位 Live Photo ID 和 `vivoMediaExtInfo`，然后将原件保存到 `DATA_DIR/live-photos/`。伴读页可以按住预览动态画面并分别下载未经转码的 JPG、MP4。媒体文件不进入 JSON 备份，应随整个 `DATA_DIR` 一起备份。构建和安装方法见 `android-app/README.md`。
 
+Android 工作流成功后会创建 `android-v版本号` GitHub Release。服务端启动时及每 6 小时检查一次最新 Release，把 APK 缓存到 `DATA_DIR/app-updates/`；Android App 每次冷启动检查一次，发现更高 `versionCode` 后先显示版本提示，用户点击“立即更新”才开始下载。下载完成后由 Android 系统显示安装确认，不能静默安装。首次启用自更新需手动安装 3.11，此后固定签名版本可直接覆盖升级。
+
 ## Docker / NAS
 
 `docker-compose.yml` 默认通过 DaoCloud 国内代理拉取 Node 22 基础镜像，直接执行：
@@ -83,11 +85,11 @@ docker compose up -d
 如需临时切回 Docker Hub，可在构建前设置 `NODE_IMAGE=node:22.23.1-bookworm-slim`。在有 Docker 的机器构建并导出镜像：
 
 ```powershell
-docker build -t babymia:3.6.0 .
-docker save babymia:3.6.0 -o babymia-3.6.0.tar
+docker build -t babymia:3.7.0 .
+docker save babymia:3.7.0 -o babymia-3.7.0.tar
 ```
 
-在 NAS Container Station 导入 `babymia-3.6.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.6.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
+在 NAS Container Station 导入 `babymia-3.7.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.7.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
 
 AI 摘要默认关闭。需要时在服务器环境变量配置兼容 Chat Completions 的 `AI_ENDPOINT`、`AI_API_KEY` 和 `AI_MODEL`；endpoint 只接受 HTTPS，HTTP 仅允许本机 mock。密钥只在服务端使用，页面只显示 endpoint 主机和模型。每次摘要都先由家庭成员选择范围和类型并预览，点击“手动生成”后才发送同一份脱敏快照；不自动外发、不发送姓名、署名、备注或成长/疫苗/辅食记录。未配置、超时或返回错误时显示明确状态，不伪造摘要。
 

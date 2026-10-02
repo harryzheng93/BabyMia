@@ -5,13 +5,16 @@ import android.app.Activity
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
@@ -27,6 +30,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -34,6 +38,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import android.view.View
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
@@ -46,6 +52,10 @@ class MainActivity : AppCompatActivity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingUploadSelection = false
     private var pendingRestoreItemId: String? = null
+    private var updateDownloadReceiver: BroadcastReceiver? = null
+    private var pendingInstallApk: File? = null
+    private var waitingForInstallPermission = false
+    private var updateCheckStarted = false
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) showLivePhotoComposer(uri)
@@ -151,8 +161,33 @@ class MainActivity : AppCompatActivity() {
             (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
             Toast.makeText(this, "文件已加入系统下载", Toast.LENGTH_SHORT).show()
         }
+        registerUpdateDownloadReceiver()
         baseUrl = preferences.getString("base_url", "").orEmpty()
-        if (baseUrl.isBlank()) showServerDialog(required = true) else loadHome()
+        if (baseUrl.isBlank()) {
+            showServerDialog(required = true)
+        } else {
+            loadHome()
+            if (!resumePendingAppUpdate()) checkForAppUpdate()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (waitingForInstallPermission) {
+            waitingForInstallPermission = false
+            val apk = pendingInstallApk
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()) {
+                if (apk != null) installDownloadedUpdate(apk)
+            } else {
+                Toast.makeText(this, "需要允许 BabyMia 安装更新", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        updateDownloadReceiver?.let { unregisterReceiver(it) }
+        updateDownloadReceiver = null
+        super.onDestroy()
     }
 
     override fun onBackPressed() {
@@ -246,6 +281,7 @@ class MainActivity : AppCompatActivity() {
                     preferences.edit().putString("base_url", baseUrl).apply()
                     dialog.dismiss()
                     loadHome()
+                    checkForAppUpdate()
                 } catch (error: IllegalArgumentException) {
                     input.error = error.message
                 }
@@ -258,6 +294,143 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadHome() {
         webView.loadUrl(baseUrl)
+    }
+
+    private fun checkForAppUpdate() {
+        if (updateCheckStarted || baseUrl.isBlank()) return
+        updateCheckStarted = true
+        Thread {
+            try {
+                val endpoint = URL("${baseUrl.trimEnd('/')}/api/app-update/latest?versionCode=${BuildConfig.VERSION_CODE}")
+                val connection = (endpoint.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6000
+                    readTimeout = 10000
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                }
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val update = if (connection.responseCode == 200) {
+                    AppUpdateInfo.availableFrom(body, BuildConfig.VERSION_CODE)
+                } else null
+                connection.disconnect()
+                if (update != null) runOnUiThread { showUpdateAvailableDialog(update) }
+            } catch (_: Exception) {
+                // Update checks stay silent when the NAS or network is temporarily unavailable.
+            }
+        }.start()
+    }
+
+    private fun showUpdateAvailableDialog(update: AppUpdateInfo) {
+        if (isFinishing || isDestroyed) return
+        val sizeText = if (update.size > 0) "\n安装包：${"%.1f".format(update.size / 1024.0 / 1024.0)} MB" else ""
+        val notes = update.releaseNotes.ifBlank { "包含最新功能和问题修复。" }
+        AlertDialog.Builder(this)
+            .setTitle("发现新版本 ${update.versionName}")
+            .setMessage("$notes$sizeText\n\n是否现在下载更新？")
+            .setNegativeButton("稍后", null)
+            .setPositiveButton("立即更新") { _, _ -> downloadAppUpdate(update) }
+            .show()
+    }
+
+    private fun downloadAppUpdate(update: AppUpdateInfo) {
+        try {
+            val downloadUrl = URL(URL("${baseUrl.trimEnd('/')}/"), update.downloadUrl).toString()
+            val fileName = "BabyMia-${update.versionName}-release.apk"
+            val target = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+            if (target.exists()) target.delete()
+            val request = DownloadManager.Request(Uri.parse(downloadUrl))
+                .setMimeType("application/vnd.android.package-archive")
+                .setTitle("BabyMia ${update.versionName}")
+                .setDescription("正在下载应用更新")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, fileName)
+            val id = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+            preferences.edit()
+                .putLong("update_download_id", id)
+                .putInt("update_version_code", update.versionCode)
+                .putString("update_apk_path", target.absolutePath)
+                .apply()
+            Toast.makeText(this, "开始下载 BabyMia ${update.versionName}", Toast.LENGTH_LONG).show()
+        } catch (error: Exception) {
+            Toast.makeText(this, error.message ?: "无法下载应用更新", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun registerUpdateDownloadReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+                val expected = preferences.getLong("update_download_id", -1L)
+                if (intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -2L) == expected) resumePendingAppUpdate()
+            }
+        }
+        updateDownloadReceiver = receiver
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, filter)
+        }
+    }
+
+    private fun resumePendingAppUpdate(): Boolean {
+        val versionCode = preferences.getInt("update_version_code", 0)
+        val downloadId = preferences.getLong("update_download_id", -1L)
+        val path = preferences.getString("update_apk_path", null)
+        if (versionCode <= BuildConfig.VERSION_CODE || downloadId < 0 || path.isNullOrBlank()) {
+            clearPendingAppUpdate()
+            return false
+        }
+        val cursor = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager)
+            .query(DownloadManager.Query().setFilterById(downloadId))
+        cursor.use {
+            if (!it.moveToFirst()) {
+                clearPendingAppUpdate()
+                return false
+            }
+            val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            return when (status) {
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    val apk = File(path)
+                    if (apk.isFile) installDownloadedUpdate(apk) else clearPendingAppUpdate()
+                    true
+                }
+                DownloadManager.STATUS_PENDING,
+                DownloadManager.STATUS_PAUSED,
+                DownloadManager.STATUS_RUNNING -> true
+                else -> {
+                    clearPendingAppUpdate()
+                    false
+                }
+            }
+        }
+    }
+
+    private fun installDownloadedUpdate(apk: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            pendingInstallApk = apk
+            waitingForInstallPermission = true
+            Toast.makeText(this, "请允许 BabyMia 安装更新", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+            return
+        }
+        pendingInstallApk = null
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+        startActivity(
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
+
+    private fun clearPendingAppUpdate() {
+        preferences.edit()
+            .remove("update_download_id")
+            .remove("update_version_code")
+            .remove("update_apk_path")
+            .apply()
     }
 
     private fun showLivePhotoComposer(uri: Uri) {

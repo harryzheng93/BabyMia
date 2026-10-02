@@ -7,6 +7,7 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 import { DatabaseSync, backup } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { ageDaysShanghai, scoreGrowthEvent, referenceSource } from './growth.mjs';
+import { createAppUpdateStore } from './app-update-store.mjs';
 
 const PORT = Number(process.env.PORT || 8185);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -14,6 +15,10 @@ const DATA_DIR = resolve(process.env.DATA_DIR || join(process.cwd(), 'data'));
 const VIDEO_DIR = resolve(process.env.VIDEO_DIR || join(DATA_DIR, 'videos'));
 const LIVE_PHOTO_DIR = resolve(process.env.LIVE_PHOTO_DIR || join(DATA_DIR, 'live-photos'));
 const FAMILY_MEDIA_DIR = resolve(process.env.FAMILY_MEDIA_DIR || join(DATA_DIR, 'family-media'));
+const APP_UPDATE_DIR = resolve(process.env.APP_UPDATE_DIR || join(DATA_DIR, 'app-updates'));
+const ANDROID_UPDATE_ENABLED = String(process.env.ANDROID_UPDATE_ENABLED || 'true').toLowerCase() !== 'false';
+const ANDROID_RELEASE_API_URL = String(process.env.ANDROID_RELEASE_API_URL || 'https://api.github.com/repos/harryzheng93/BabyMia/releases/latest').trim();
+const ANDROID_UPDATE_INTERVAL_MS = Math.max(15 * 60 * 1000, Number(process.env.ANDROID_UPDATE_INTERVAL_MS || 6 * 60 * 60 * 1000));
 const VIDEO_DIRECTORY_HINT = process.env.VIDEO_DIR ? 'VIDEO_DIR' : 'DATA_DIR/videos';
 const DB_FILE = resolve(process.env.DB_FILE || join(DATA_DIR, 'babymia.sqlite'));
 const PUBLIC_DIR = resolve(join(process.cwd(), 'public'));
@@ -45,6 +50,18 @@ await mkdir(DATA_DIR, { recursive: true });
 await mkdir(VIDEO_DIR, { recursive: true });
 await mkdir(LIVE_PHOTO_DIR, { recursive: true });
 await mkdir(FAMILY_MEDIA_DIR, { recursive: true });
+await mkdir(APP_UPDATE_DIR, { recursive: true });
+const appUpdateStore = createAppUpdateStore({ directory: APP_UPDATE_DIR, releaseApiUrl: ANDROID_RELEASE_API_URL });
+let appUpdateSyncPromise = null;
+let lastAppUpdateAttempt = 0;
+const syncAppUpdate = async (force = false) => {
+  if (!ANDROID_UPDATE_ENABLED) return appUpdateStore.latest();
+  if (!force && Date.now() - lastAppUpdateAttempt < 5 * 60 * 1000) return appUpdateStore.latest();
+  if (appUpdateSyncPromise) return appUpdateSyncPromise;
+  lastAppUpdateAttempt = Date.now();
+  appUpdateSyncPromise = appUpdateStore.sync().finally(() => { appUpdateSyncPromise = null; });
+  return appUpdateSyncPromise;
+};
 const db = new DatabaseSync(DB_FILE);
 db.exec(`PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -835,6 +852,35 @@ const currentState = () => ({ profile: profile(), summary: summary(), events: al
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`); const path = url.pathname;
   if (req.method === 'GET' && path === '/api/status') return json(res, 200, { setup: Boolean(profile()) });
+  if (req.method === 'GET' && path === '/api/app-update/latest') {
+    try { await syncAppUpdate(); } catch (e) { console.error(`Android update sync skipped: ${safeMessage(e)}`); }
+    const latest = await appUpdateStore.latest();
+    const currentCode = Number(url.searchParams.get('versionCode') || 0);
+    return json(res, 200, {
+      available: Boolean(latest && Number.isSafeInteger(currentCode) && latest.versionCode > currentCode),
+      latest: latest ? {
+        versionName: latest.versionName,
+        versionCode: latest.versionCode,
+        releaseNotes: latest.releaseNotes,
+        publishedAt: latest.publishedAt,
+        size: latest.size,
+        sha256: latest.sha256,
+        downloadUrl: '/api/app-update/apk',
+      } : null,
+    });
+  }
+  if (['GET', 'HEAD'].includes(req.method) && path === '/api/app-update/apk') {
+    const item = await appUpdateStore.describeFile();
+    if (!item) return error(res, 404, '暂时没有可下载的 Android 安装包');
+    res.writeHead(200, {
+      'content-type': 'application/vnd.android.package-archive',
+      'content-length': item.size,
+      'content-disposition': `attachment; filename="${item.metadata.fileName}"`,
+      'cache-control': 'private, max-age=300',
+    });
+    if (req.method === 'HEAD') return res.end();
+    return createReadStream(item.file).on('error', () => res.destroy()).pipe(res);
+  }
   if (req.method === 'POST' && path === '/api/setup') {
     if (!requireSameOrigin(req, res)) return;
     const body = await parseJson(req); const mutationId = requireMutation(body);
@@ -957,7 +1003,14 @@ const ensureDailySnapshot = async () => {
   if (day === lastSnapshotDay) return;
   try { await snapshot(); lastSnapshotDay = day; console.log(`Daily SQLite snapshot created for ${day}`); } catch (e) { console.error(`Daily snapshot skipped: ${safeMessage(e)}`); }
 };
-server.listen(PORT, HOST, () => { console.log(`BabyMia listening on http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`); ensureDailySnapshot(); });
+server.listen(PORT, HOST, () => {
+  console.log(`BabyMia listening on http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`);
+  ensureDailySnapshot();
+  syncAppUpdate(true).then((item) => {
+    if (item) console.log(`Android APK cached: ${item.versionName} (${item.versionCode})`);
+  }).catch((e) => console.error(`Android update sync skipped: ${safeMessage(e)}`));
+});
 setInterval(ensureDailySnapshot, 6 * 60 * 60 * 1000).unref();
+setInterval(() => syncAppUpdate(true).catch((e) => console.error(`Android update sync skipped: ${safeMessage(e)}`)), ANDROID_UPDATE_INTERVAL_MS).unref();
 process.on('SIGTERM', () => { db.close(); server.close(); });
 export { db, server, currentState, snapshot, DB_FILE };

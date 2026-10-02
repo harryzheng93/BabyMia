@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { scoreMeasurement } from './growth.mjs';
 import { createStoryStore } from './story-store.mjs';
+import { createAppUpdateStore } from './app-update-store.mjs';
 import { DatabaseSync } from 'node:sqlite';
 const storyDb = new DatabaseSync(":memory:");
 const seedFixture = [{ title: "初始", segments: [{ zh: "初始内容", en: "Seed" }] }];
@@ -25,17 +26,30 @@ for (const check of whoChecks) {
 }
 
 const dir = await mkdtemp(join(tmpdir(), 'babymia-')); const port = 18995 + Math.floor(Math.random() * 300); const mockPort = 19995 + Math.floor(Math.random() * 300); let mockCalls = 0; let mockPayloads = [];
+const fakeApk = Buffer.from('fake-signed-babymia-apk');
+const updateStore = createAppUpdateStore({
+  directory: join(dir, 'app-updates'),
+  releaseApiUrl: 'https://updates.test/releases/latest',
+  fetchImpl: async (url) => url === 'https://updates.test/releases/latest'
+    ? new Response(JSON.stringify({ tag_name:'android-v3.11', body:'versionCode: 11\n\nUpdater bootstrap', published_at:'2026-10-02T00:00:00Z', assets:[{ name:'BabyMia-3.11-release.apk', browser_download_url:'https://updates.test/BabyMia.apk' }] }), { status:200, headers:{'content-type':'application/json'} })
+    : new Response(fakeApk, { status:200, headers:{'content-type':'application/vnd.android.package-archive'} }),
+  clock: () => new Date('2026-10-02T01:00:00Z'),
+});
+const syncedUpdate = await updateStore.sync(); assert.equal(syncedUpdate.versionCode, 11); assert.equal(syncedUpdate.versionName, '3.11'); assert.equal((await updateStore.latest()).size, fakeApk.length);
 await mkdir(join(dir, 'videos'), { recursive: true }); await writeFile(join(dir, 'videos', 'sss-test.mp4'), Buffer.from('fake-mp4-content'));
 let mockMode = "ok";
 const mockServer = createServer(async (request, response) => { let raw = ''; for await (const chunk of request) raw += chunk; mockCalls += 1; try { mockPayloads.push(JSON.parse(raw)); } catch {} if (mockMode === 'timeout') { await new Promise(resolve => setTimeout(resolve, 1200)); }
 if (mockMode === 'http') { response.writeHead(503); response.end('unavailable'); return; }
 if (mockMode === 'json') { response.end('invalid json'); return; }
 response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ choices: [{ message: { content: '已根据预览记录整理：请继续交接。' } }] })); }); await new Promise((resolve) => mockServer.listen(mockPort, '127.0.0.1', resolve));
-const child = spawn(process.execPath, ['server.mjs'], { cwd: process.cwd(), env: { ...process.env, PORT: String(port), DATA_DIR: dir, AI_ENDPOINT: `http://127.0.0.1:${mockPort}/v1/chat/completions`, AI_API_KEY: 'local-mock-key', AI_MODEL: 'local-mock', AI_TIMEOUT_MS: '1000' }, stdio: ['ignore','pipe','pipe'] });
+const child = spawn(process.execPath, ['server.mjs'], { cwd: process.cwd(), env: { ...process.env, PORT: String(port), DATA_DIR: dir, ANDROID_UPDATE_ENABLED:'false', AI_ENDPOINT: `http://127.0.0.1:${mockPort}/v1/chat/completions`, AI_API_KEY: 'local-mock-key', AI_MODEL: 'local-mock', AI_TIMEOUT_MS: '1000' }, stdio: ['ignore','pipe','pipe'] });
 let output = ''; child.stdout.on('data', (x) => { output += x; }); child.stderr.on('data', (x) => { output += x; });
 const base = `http://127.0.0.1:${port}`; const wait = async () => { for (let i=0;i<50;i++) { try { if ((await fetch(`${base}/api/status`)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 50)); } throw new Error(`服务未启动 ${output}`); }; await wait();
 let cookie = ''; const req = async (path, body, method = 'POST', extra = {}) => { const res = await fetch(base + path, { method, headers: { ...(body ? {'content-type':'application/json'} : {}), origin: base, cookie, ...extra }, body: body ? JSON.stringify(body) : undefined }); const set = res.headers.get('set-cookie'); if (set) cookie = set.split(';')[0]; const data = await res.json(); return { res, data }; };
 try {
+  const updateCheck = await fetch(base + '/api/app-update/latest?versionCode=10'); assert.equal(updateCheck.status, 200); const updateJson = await updateCheck.json(); assert.equal(updateJson.available, true); assert.equal(updateJson.latest.versionCode, 11); assert.equal(updateJson.latest.downloadUrl, '/api/app-update/apk');
+  const updateDownload = await fetch(base + '/api/app-update/apk'); assert.equal(updateDownload.status, 200); assert.equal(updateDownload.headers.get('content-type'), 'application/vnd.android.package-archive'); assert.deepEqual(Buffer.from(await updateDownload.arrayBuffer()), fakeApk);
+  const currentCheck = await fetch(base + '/api/app-update/latest?versionCode=11'); assert.equal((await currentCheck.json()).available, false);
   const setup = { mutationId: randomUUID(), babyName:'米娅', birthDate:'2026-05-01', caregiverName:'妈妈', password:'family-pass-8' };
   const [a,b] = await Promise.all([req('/api/setup', setup), req('/api/setup', { ...setup, mutationId: randomUUID() })]); assert.equal([a.res.status,b.res.status].sort((x,y)=>x-y).join(','), '201,409');
   const login = await req('/api/login', { caregiverName:'妈妈', password: setup.password }); assert.equal(login.res.status, 200); const momCookie = cookie;

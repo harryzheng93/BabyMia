@@ -14,17 +14,17 @@
 
 ## 构建
 
-需要 JDK 17、Android SDK 35 和 Gradle 8.9：
+需要 JDK 17、Android SDK 35 和 Gradle 8.9。正式安装包必须使用项目的固定 Release 签名：
 
 ```powershell
 cd android-app
-gradle testDebugUnitTest assembleDebug
+gradle testDebugUnitTest assembleRelease
 ```
 
-APK 输出：`android-app/app/build/outputs/apk/debug/app-debug.apk`。
+APK 输出：`android-app/app/build/outputs/apk/release/app-release.apk`。
 
-如果本机没有打包工具，把整个项目推送到 GitHub，然后打开仓库的 **Actions → Build BabyMia Android APK → Run workflow**。构建通过后，在该次运行底部下载 `BabyMia-debug-apk`，解压得到 `app-debug.apk`。工作流位于 `.github/workflows/android-apk.yml`。
+如果本机没有打包工具，把整个项目推送到 GitHub，然后打开仓库的 **Actions → Build BabyMia Android APK → Run workflow**。构建通过后，在该次运行底部下载 `BabyMia-版本号-release-apk`。工作流还会创建对应的 GitHub Release，供 BabyMia 服务端自动同步。
 
-调试 APK 适合当前设备测试。GitHub 托管构建机生成的调试签名可能发生变化；后续需要在手机上直接覆盖升级时，应增加固定的 release 签名，并将签名文件和密码放在 GitHub Secrets 中，不能提交到仓库。
+发布签名由 GitHub Secrets 恢复，签名文件和密码不能提交到仓库。3.11 是自更新引导版，需要手动安装一次；以后 App 冷启动时会向自己的 BabyMia 服务端检查更新，发现新版先弹窗，确认后下载并交给 Android 系统安装。
 
 当前允许局域网明文 HTTP，便于连接 NAS。对公网开放时应使用 HTTPS。

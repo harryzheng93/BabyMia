@@ -12,6 +12,8 @@ services:
       PORT: "8095"
       HOST: 0.0.0.0
       DATA_DIR: /app/data
+      ANDROID_UPDATE_ENABLED: "true"
+      ANDROID_RELEASE_API_URL: https://api.github.com/repos/harryzheng93/BabyMia/releases/latest
       # VIDEO_DIR: /app/videos
       AI_TIMEOUT_MS: "12000"
       # AI_ENDPOINT: https://your-provider.example/v1/chat/completions

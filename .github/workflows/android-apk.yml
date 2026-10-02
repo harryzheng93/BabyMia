@@ -15,7 +15,7 @@ jobs:
   build-release-apk:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout
@@ -40,6 +40,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+
+      - name: Read Android version
+        id: version
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' android-app/app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' android-app/app/build.gradle.kts)
+          test -n "$VERSION_NAME"
+          test -n "$VERSION_CODE"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Run Android tests
         working-directory: android-app
@@ -68,14 +78,34 @@ jobs:
       - name: Verify release signature
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android-app/app/build/outputs/apk/release/app-release.apk
-          cp android-app/app/build/outputs/apk/release/app-release.apk BabyMia-3.10-release.apk
+          cp android-app/app/build/outputs/apk/release/app-release.apk "BabyMia-${{ steps.version.outputs.name }}-release.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BabyMia-3.10-release-apk
-          path: BabyMia-3.10-release.apk
+          name: BabyMia-${{ steps.version.outputs.name }}-release-apk
+          path: BabyMia-${{ steps.version.outputs.name }}-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish Android release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          TAG="android-v$VERSION_NAME"
+          APK="BabyMia-$VERSION_NAME-release.apk"
+          {
+            echo "versionCode: $VERSION_CODE"
+            echo
+            echo "BabyMia Android $VERSION_NAME"
+          } > android-release-notes.txt
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --title "BabyMia Android $VERSION_NAME" --notes-file android-release-notes.txt
+          else
+            gh release create "$TAG" "$APK" --title "BabyMia Android $VERSION_NAME" --notes-file android-release-notes.txt --latest
+          fi
 
 
