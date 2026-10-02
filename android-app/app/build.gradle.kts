@@ -12,6 +12,10 @@ android {
     namespace = "com.harryzheng.vivolivephoto"
     compileSdk = 35
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.harryzheng.babymia"
         minSdk = 26
