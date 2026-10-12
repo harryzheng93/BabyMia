@@ -36,6 +36,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import android.view.View
+import android.view.WindowManager
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -56,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private var pendingInstallApk: File? = null
     private var waitingForInstallPermission = false
     private var updateCheckStarted = false
+    private var webVideoPlaying = false
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) showLivePhotoComposer(uri)
@@ -142,6 +144,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                installVideoPlaybackObserver()
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val target = request.url
                 val home = Uri.parse(baseUrl)
@@ -173,6 +180,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        syncVideoPlaybackState()
         if (waitingForInstallPermission) {
             waitingForInstallPermission = false
             val apk = pendingInstallApk
@@ -184,7 +192,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStop() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        setVideoPlaying(false)
         updateDownloadReceiver?.let { unregisterReceiver(it) }
         updateDownloadReceiver = null
         super.onDestroy()
@@ -257,6 +271,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        @JavascriptInterface fun setVideoPlaying(playing: Boolean) = runOnUiThread {
+            this@MainActivity.setVideoPlaying(playing)
+        }
+
         @JavascriptInterface fun configureServer() = runOnUiThread { showServerDialog(required = false) }
     }
 
@@ -294,6 +312,48 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadHome() {
         webView.loadUrl(baseUrl)
+    }
+
+    private fun installVideoPlaybackObserver() {
+        webView.evaluateJavascript(
+            """
+            (() => {
+              if (window.__babyMiaVideoObserverInstalled) return;
+              window.__babyMiaVideoObserverInstalled = true;
+              const report = () => {
+                const playing = Array.from(document.querySelectorAll('video'))
+                  .some(video => !video.paused && !video.ended && video.readyState > 2);
+                window.BabyMiaNative?.setVideoPlaying(playing);
+              };
+              ['play', 'playing', 'pause', 'ended', 'emptied', 'abort']
+                .forEach(eventName => document.addEventListener(eventName, report, true));
+              window.addEventListener('pagehide', () => window.BabyMiaNative?.setVideoPlaying(false));
+              report();
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    private fun syncVideoPlaybackState() {
+        if (!::webView.isInitialized) return
+        webView.evaluateJavascript(
+            """
+            (() => Array.from(document.querySelectorAll('video'))
+              .some(video => !video.paused && !video.ended && video.readyState > 2))()
+            """.trimIndent(),
+        ) { result ->
+            setVideoPlaying(result == "true")
+        }
+    }
+
+    private fun setVideoPlaying(playing: Boolean) {
+        webVideoPlaying = playing
+        if (playing) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     private fun checkForAppUpdate() {
