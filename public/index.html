@@ -63,9 +63,10 @@
       <div class="section-heading"><div><p class="eyebrow">家庭视频</p><h3>SSS 视频库</h3></div><button id="videoRefresh" class="text-button" type="button">刷新列表</button></div>
       <p class="muted small">把购买或合法下载的 MP4 文件放入 NAS 视频目录，再刷新列表。视频直接从 NAS 播放，不写入故事库。</p>
       <p id="videoLibraryStatus" class="video-library-status muted small"></p>
+      <label class="video-picker">选择视频<select id="videoSelect" aria-label="选择要播放的视频"><option value="">请选择视频</option></select></label>
       <div class="video-player-shell"><video id="videoPlayer" controls playsinline preload="metadata" hidden></video><div id="videoEmpty" class="video-empty">还没有发现 MP4 文件</div></div>
+      <div id="videoTransport" class="video-transport" hidden><button id="videoPrev" class="secondary" type="button">上一首</button><span id="videoPosition" aria-live="polite"></span><button id="videoNext" class="secondary" type="button">下一首</button></div>
       <div id="videoNow" class="video-now" hidden><div><strong id="videoTitle"></strong><small id="videoMeta"></small></div><button id="videoStop" class="quiet-button" type="button">停止播放</button></div>
-      <div id="videoList" class="video-list"></div>
     </section>
     <section class="panel resource-panel"><div class="section-heading"><div><p class="eyebrow">官方入口</p><h3>把喜欢的页面留在这里</h3></div></div><p class="muted small">只保存官方页面链接并在新窗口打开，不下载或代理媒体。</p><div id="officialResources" class="resource-grid"></div><form id="favoriteForm" class="favorite-form"><input type="hidden" name="id"><input type="hidden" name="version"><label>页面名称<input name="title" maxlength="120" required placeholder="例如：睡前歌曲"></label><label>页面链接<input name="url" type="url" maxlength="2000" required placeholder="https://"></label><label>分类<select name="kind"><option value="official">官方资源</option><option value="story">故事</option><option value="other">其他</option></select></label><div class="button-row"><button class="primary">保存收藏</button><button type="button" id="favoriteCancel" class="secondary" hidden>取消编辑</button></div></form><div id="favoriteList" class="favorite-list"></div></section>
 

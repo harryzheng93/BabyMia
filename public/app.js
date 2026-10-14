@@ -382,17 +382,17 @@ let videoItems = []; let videoCurrentId = ""; let videoIndex = -1; let videoLibr
 const videoBytes = value => { const n = Number(value || 0); if (n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + " KB"; return (n / (1024 * 1024)).toFixed(n >= 100 * 1024 * 1024 ? 0 : 1) + " MB"; };
 const videoDate = value => { try { return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric" }).format(new Date(value)); } catch { return ""; } };
 function renderVideos() {
-  const list = $("#videoList"); list.replaceChildren(); const player = $("#videoPlayer"); const empty = $("#videoEmpty"); const now = $("#videoNow");
+  const select = $("#videoSelect"); const player = $("#videoPlayer"); const empty = $("#videoEmpty"); const now = $("#videoNow"); const transport = $("#videoTransport");
   const selected = videoItems.findIndex(item => item.id === videoCurrentId); videoIndex = selected;
-  empty.hidden = videoItems.length > 0 || selected >= 0; player.hidden = selected < 0; now.hidden = selected < 0;
-  if (selected >= 0) { const item = videoItems[selected]; $("#videoTitle").textContent = item.title; $("#videoMeta").textContent = videoBytes(item.size_bytes) + (item.updated_at ? " · 更新于 " + videoDate(item.updated_at) : ""); }
-  if (!videoItems.length) { $("#videoLibraryStatus").textContent = "目录中没有 MP4。当前目录：" + videoDirectoryHint + "。把文件放入后刷新列表。"; return; }
-  for (const [index, item] of videoItems.entries()) {
-    const row = document.createElement("div"); row.className = "video-row" + (item.id === videoCurrentId ? " selected" : "");
-    const button = document.createElement("button"); button.type = "button"; button.className = "video-row-main"; button.setAttribute("aria-pressed", String(item.id === videoCurrentId));
-    const title = document.createElement("strong"); title.textContent = item.title; const meta = document.createElement("small"); meta.textContent = videoBytes(item.size_bytes) + (item.updated_at ? " · " + videoDate(item.updated_at) : "");
-    const mark = document.createElement("span"); mark.className = "video-row-mark"; mark.textContent = item.id === videoCurrentId ? "正在播放" : "播放"; button.append(mark, title, meta); button.addEventListener("click", () => selectVideo(index, true)); row.append(button); list.append(row);
+  select.replaceChildren(new Option("请选择视频", ""));
+  videoItems.forEach((item, index) => select.add(new Option((index + 1) + ". " + item.title, item.id)));
+  select.value = selected >= 0 ? videoCurrentId : ""; select.disabled = videoItems.length === 0;
+  empty.hidden = videoItems.length > 0 || selected >= 0; player.hidden = selected < 0; now.hidden = selected < 0; transport.hidden = selected < 0;
+  if (selected >= 0) {
+    const item = videoItems[selected]; $("#videoTitle").textContent = item.title; $("#videoMeta").textContent = videoBytes(item.size_bytes) + (item.updated_at ? " · 更新于 " + videoDate(item.updated_at) : "");
+    $("#videoPosition").textContent = (selected + 1) + " / " + videoItems.length; $("#videoPrev").disabled = selected === 0; $("#videoNext").disabled = selected === videoItems.length - 1;
   }
+  if (!videoItems.length) { $("#videoLibraryStatus").textContent = "目录中没有 MP4。当前目录：" + videoDirectoryHint + "。把文件放入后刷新列表。"; return; }
   $("#videoLibraryStatus").textContent = "已发现 " + videoItems.length + " 个 MP4 · 目录：" + (videoDirectoryHint || "DATA_DIR/videos");
 }
 let videoDirectoryHint = "DATA_DIR/videos";
@@ -407,6 +407,9 @@ function selectVideo(index, autoplay = false) {
   if (autoplay) { const promise = player.play(); promise?.catch(() => { $("#videoLibraryStatus").textContent = "已选择《" + item.title + "》，请点击播放器开始。"; }); }
 }
 $("#videoRefresh").addEventListener("click", () => loadVideoLibrary());
+$("#videoSelect").addEventListener("change", (event) => { const index = videoItems.findIndex(item => item.id === event.target.value); if (index >= 0) selectVideo(index, true); });
+$("#videoPrev").addEventListener("click", () => { if (videoIndex > 0) selectVideo(videoIndex - 1, true); });
+$("#videoNext").addEventListener("click", () => { if (videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); });
 $("#videoStop").addEventListener("click", () => { const player = $("#videoPlayer"); player.pause(); player.currentTime = 0; $("#videoLibraryStatus").textContent = "已停止播放 · " + (videoItems[videoIndex]?.title || ""); });
 $("#videoPlayer").addEventListener("ended", () => { if (videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); else $("#videoLibraryStatus").textContent = "已播放到列表末尾"; });
 $("#videoPlayer").addEventListener("error", () => { if (videoCurrentId) $("#videoLibraryStatus").textContent = "这个文件无法播放，请确认是 MP4（H.264 视频 + AAC 音频）。"; });

@@ -85,11 +85,11 @@ docker compose up -d
 如需临时切回 Docker Hub，可在构建前设置 `NODE_IMAGE=node:22.23.1-bookworm-slim`。在有 Docker 的机器构建并导出镜像：
 
 ```powershell
-docker build -t babymia:3.7.0 .
-docker save babymia:3.7.0 -o babymia-3.7.0.tar
+docker build -t babymia:3.8.0 .
+docker save babymia:3.8.0 -o babymia-3.8.0.tar
 ```
 
-在 NAS Container Station 导入 `babymia-3.7.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.7.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
+在 NAS Container Station 导入 `babymia-3.8.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.8.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
 
 AI 摘要默认关闭。需要时在服务器环境变量配置兼容 Chat Completions 的 `AI_ENDPOINT`、`AI_API_KEY` 和 `AI_MODEL`；endpoint 只接受 HTTPS，HTTP 仅允许本机 mock。密钥只在服务端使用，页面只显示 endpoint 主机和模型。每次摘要都先由家庭成员选择范围和类型并预览，点击“手动生成”后才发送同一份脱敏快照；不自动外发、不发送姓名、署名、备注或成长/疫苗/辅食记录。未配置、超时或返回错误时显示明确状态，不伪造摘要。
 
