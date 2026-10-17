@@ -29,7 +29,9 @@ BabyMia 是一个面向家庭共同照护的手机优先育儿工作台。它把
 - 记录疫苗预约、实际接种、品牌批号和接种后观察。
 - 记录辅食尝试、质地、摄入量和反应观察，不自动作出过敏诊断。
 
-### 伴读与亲子互动
+### 陪伴与亲子互动
+
+陪伴首页提供“一起玩、读故事、看视频、收藏夹”四个入口。当前设备会记住上次的故事段落或视频进度；首页的“继续上次”可直接恢复。AI 交接摘要位于概览页。
 
 - 按宝宝月龄提供运动、感官、沟通和亲子互动建议，并标注练习能力、步骤和安全提醒。
 - 内置中英逐段双语故事，支持浏览器朗读和共读提示。
@@ -63,13 +65,13 @@ npm start
 
 ## SSS MP4 视频
 
-伴读页的“SSS 视频库”直接播放 NAS 上的 MP4 文件。默认目录是 DATA_DIR/videos，本机运行时把文件放入 data/videos/，打开伴读页点击“刷新列表”即可。文件只通过网页按 Range 分段读取，不复制进 SQLite，也不需要 Emby；播放器支持拖动进度、全屏和播完自动播放下一条。
+“陪伴 → 看视频”中的 SSS 视频库直接播放 NAS 上的 MP4 文件。默认目录是 DATA_DIR/videos，本机运行时把文件放入 data/videos/，打开“陪伴 → 看视频”点击“刷新”即可。文件只通过网页按 Range 分段读取，不复制进 SQLite，也不需要 Emby；播放器支持拖动进度、全屏和播完自动播放下一条。
 
 Docker / NAS 使用现有 ./data:/app/data 映射时，把 MP4 放入 NAS 数据目录的 videos/ 子目录。若希望把媒体单独放在另一个 NAS 共享目录，可设置 VIDEO_DIR=/app/videos，并增加 ./videos:/app/videos 映射。页面只列出目录顶层的 .mp4 文件；建议使用手机兼容性较好的 H.264 视频与 AAC 音频。视频文件不进入 JSON / SQLite 备份，NAS 需要另外备份媒体目录。
 
-伴读页还提供“Live Photo 兼容性测试”。普通浏览器选择动态照片后，页面会显示浏览器实际交出的文件数量、类型，以及是否检测到 Android Motion Photo 的 XMP 标记和内嵌视频。检测文件只进入服务进程内存，不写入磁盘；一次最多 6 个文件，单个不超过 128 MB。
+相册页的“Live Photo 兼容性检测”已默认隐藏，检测接口仍保留用于排查兼容性。普通浏览器选择动态照片后，页面会显示浏览器实际交出的文件数量、类型，以及是否检测到 Android Motion Photo 的 XMP 标记和内嵌视频。检测文件只进入服务进程内存，不写入磁盘；一次最多 6 个文件，单个不超过 128 MB。
 
-`android-app/` 是统一的 BabyMia Android 应用：界面仍使用当前网页，原生层通过 MediaStore 找到 vivo Live Photo 的原始 JPG + MP4，携带当前登录会话上传。服务端再次核对双方 28 位 Live Photo ID 和 `vivoMediaExtInfo`，然后将原件保存到 `DATA_DIR/live-photos/`。伴读页可以按住预览动态画面并分别下载未经转码的 JPG、MP4。媒体文件不进入 JSON 备份，应随整个 `DATA_DIR` 一起备份。构建和安装方法见 `android-app/README.md`。
+`android-app/` 是统一的 BabyMia Android 应用：界面仍使用当前网页，原生层通过 MediaStore 找到 vivo Live Photo 的原始 JPG + MP4，携带当前登录会话上传。服务端再次核对双方 28 位 Live Photo ID 和 `vivoMediaExtInfo`，然后将原件保存到 `DATA_DIR/live-photos/`。相册页可以按住预览动态画面并分别下载未经转码的 JPG、MP4。媒体文件不进入 JSON 备份，应随整个 `DATA_DIR` 一起备份。构建和安装方法见 `android-app/README.md`。
 
 Android 工作流成功后会创建 `android-v版本号` GitHub Release。服务端启动时及每 6 小时检查一次最新 Release，把 APK 缓存到 `DATA_DIR/app-updates/`；Android App 每次冷启动检查一次，发现更高 `versionCode` 后先显示版本提示，用户点击“立即更新”才开始下载。下载完成后由 Android 系统显示安装确认，不能静默安装。首次启用自更新需手动安装 3.11，此后固定签名版本可直接覆盖升级。
 
@@ -85,11 +87,11 @@ docker compose up -d
 如需临时切回 Docker Hub，可在构建前设置 `NODE_IMAGE=node:22.23.1-bookworm-slim`。在有 Docker 的机器构建并导出镜像：
 
 ```powershell
-docker build -t babymia:3.8.0 .
-docker save babymia:3.8.0 -o babymia-3.8.0.tar
+docker build -t babymia:3.9.0 .
+docker save babymia:3.9.0 -o babymia-3.9.0.tar
 ```
 
-在 NAS Container Station 导入 `babymia-3.8.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.8.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
+在 NAS Container Station 导入 `babymia-3.9.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.9.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
 
 AI 摘要默认关闭。需要时在服务器环境变量配置兼容 Chat Completions 的 `AI_ENDPOINT`、`AI_API_KEY` 和 `AI_MODEL`；endpoint 只接受 HTTPS，HTTP 仅允许本机 mock。密钥只在服务端使用，页面只显示 endpoint 主机和模型。每次摘要都先由家庭成员选择范围和类型并预览，点击“手动生成”后才发送同一份脱敏快照；不自动外发、不发送姓名、署名、备注或成长/疫苗/辅食记录。未配置、超时或返回错误时显示明确状态，不伪造摘要。
 
@@ -113,13 +115,13 @@ npm run check
 
 ## 月龄活动与双语共读
 
-伴读页按档案出生日期匹配 0–2、3–5、6–8、9–11、12–17、18–23 个月六个阶段，共 24 项活动。每项说明练习能力、开始条件、步骤、观察与安全注意；可浏览其他阶段并返回当前月龄。早产宝宝需与儿保医生确认矫正月龄；内容不用于发育达标评分，24 个月及以上明确提示超出当前内容范围。
+“陪伴 → 一起玩”按档案出生日期匹配 0–2、3–5、6–8、9–11、12–17、18–23 个月六个阶段，共 24 项活动。每项说明练习能力、开始条件、步骤、观察与安全注意；可浏览其他阶段并返回当前月龄。早产宝宝需与儿保医生确认矫正月龄；内容不用于发育达标评分，24 个月及以上明确提示超出当前内容范围。
 
 两篇原创双语故事各含八段，支持选篇、逐段中英对照、朗读与共读提示。活动依据链接随阶段显示，内容集中在 public/companion-content.js，已加入服务器静态资源列表；升级时需重启 Node 服务后加载新资源。
 
 ## 更新故事
 
-在“伴读”页选择“新增故事”，填写标题，按段配对中文和英文；可添加、删除、上移或下移段落。选择已有故事后使用“编辑本篇”“删除本篇”或“导出本篇”。编辑冲突会保留草稿并提示刷新，避免覆盖其他设备的修改。
+在“陪伴 → 读故事 → 管理故事”中选择“新增故事”，填写标题，按段配对中文和英文；可添加、删除、上移或下移段落。选择已有故事后使用“编辑本篇”“删除本篇”或“导出本篇”。编辑冲突会保留草稿并提示刷新，避免覆盖其他设备的修改。
 
 批量添加时展开“从 JSON 文件导入故事”，先下载模板，填写后选取文件、检查待导入标题，再点“确认导入”。只追加，不覆盖；完全相同的故事会拒绝重复导入。每批 1–20 篇，文件不超过 4 MB，每篇 1–50 段，故事库最多 100 篇。
 
@@ -130,3 +132,5 @@ npm run check
 故事实际存于 DATA_DIR 下的 babymia.sqlite，并纳入设置页的完整备份。reference/starter-stories.json 仅首次初始化两篇原有故事；之后升级不会覆盖修改，也不会重新添加已删除的故事。public/companion-content.js 仅保存月龄活动内容。
 
 本次升级需要重启 Node 服务；Docker 部署需使用包含 story-store.mjs 和 reference/starter-stories.json 的新版镜像。数据卷路径保持原值。
+
+陪伴导航浏览器检查：安装 Playwright 后运行 `node qa/companion-navigation.cjs`。可通过 `PLAYWRIGHT_MODULE` 指定已有 Playwright 包路径，通过 `BROWSER_PATH` 指定浏览器。检查使用临时数据目录，覆盖分类导航、故事新增编辑与进度恢复、227 首视频选集与自动切歌，以及 320–1280 像素布局；媒体播放使用模拟，实际解码与 Android 全屏需真机确认。

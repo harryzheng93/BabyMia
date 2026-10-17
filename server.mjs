@@ -992,7 +992,7 @@ async function route(req, res) {
   return error(res, 404, '页面不存在');
 }
 async function staticFile(req, res, relative) {
-  const allowed = new Set(['index.html', 'app.js', 'companion-content.js', 'styles.css', 'live-photo.css', 'baby-care-icons.png', 'icon-bottle.png', 'icon-breast.png', 'icon-sleep.png', 'icon-diaper.png', 'icon-supplement.png', 'icon-play.png', 'icon-outing.png']); const name = basename(relative);
+  const allowed = new Set(['index.html', 'app.js', 'companion-content.js', 'styles.css', 'companion-navigation.css', 'live-photo.css', 'baby-care-icons.png', 'icon-bottle.png', 'icon-breast.png', 'icon-sleep.png', 'icon-diaper.png', 'icon-supplement.png', 'icon-play.png', 'icon-outing.png']); const name = basename(relative);
   if (relative.includes('..') || !allowed.has(name) || name !== relative) return error(res, 404, '页面不存在');
   try { const body = await readFile(join(PUBLIC_DIR, name)); const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png' }; res.writeHead(200, { 'content-type': types[extname(name)], 'cache-control': 'no-cache' }); res.end(body); } catch { error(res, 404, '页面不存在'); }
 }

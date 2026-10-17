@@ -105,7 +105,7 @@ async function revokeBreastSession(peers) { if (!confirm('取消这条亲喂记�
 $('#setupForm').addEventListener('submit', async (e) => { e.preventDefault(); const b = formObject(e.currentTarget); try { await api('/api/setup', { method: 'POST', body: JSON.stringify({ mutationId: uid(), babyName: b.babyName, birthDate: b.birthDate, gender: b.gender, caregiverName: b.caregiverName, password: b.password }) }); await api('/api/login', { method: 'POST', body: JSON.stringify({ caregiverName: b.caregiverName, password: b.password }) }); await loadState(); showApp(); toast('档案已建立'); } catch (x) { toast(x.message); } });
 $('#loginForm').addEventListener('submit', async (e) => { e.preventDefault(); const b = formObject(e.currentTarget); try { await api('/api/login', { method: 'POST', body: JSON.stringify({ caregiverName: b.caregiverName, password: b.password }) }); await loadState(); showApp(); } catch (x) { toast(x.message); } });
 $('#closeDialog').addEventListener('click', () => $('#eventDialog').close()); $('#endTimerBtn').addEventListener('click', () => { const f = $('#eventForm'); return f.querySelector('[name=type]')?.value === 'breast' ? saveBreastForm(f, true) : finishTimerForm(f); }); $('#refreshBtn').addEventListener('click', () => loadState().catch((e) => toast(e.message))); $('#historyBtn').addEventListener('click', () => switchView('history')); $('#historyBack').addEventListener('click', () => switchView('home')); $('#logoutBtn').addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST', body: '{}' }); showAuth(false); } catch (e) { toast(e.message); } });
-function switchView(name) { if (name === "companion") loadStoryLibrary(); if (name === "album") loadLivePhotos().catch(() => {}); if (name !== 'companion') stopSpeech(); document.querySelectorAll('.view').forEach((x) => x.hidden = x.id !== `view-${name}`); document.querySelectorAll('.bottom-nav button[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === name)); }
+function switchView(name, push = true) { if (push) history.pushState({ view: name, page: name === 'companion' ? 'home' : undefined }, '', location.href); $('.topbar').hidden = name === 'companion'; $('#handoff').hidden = name !== 'home'; if (name === 'companion') { openCompanionPage('home', false, false); renderCompanionResume(); } if (name === "album") loadLivePhotos().catch(() => {}); if (name !== 'companion') stopSpeech(); document.querySelectorAll('.view').forEach((x) => x.hidden = x.id !== `view-${name}`); document.querySelectorAll('.bottom-nav button[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === name)); }
 document.querySelectorAll('.bottom-nav [data-view]').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
 $('#profileForm').addEventListener('input', () => { settingsDirty = true; });
 $('#profileForm').addEventListener('submit', async (e) => { e.preventDefault(); const b = formObject(e.currentTarget); try { await api('/api/profile', { method: 'PATCH', body: JSON.stringify({ ...b, mutationId: uid() }) }); settingsDirty = false; await loadState(); toast('档案已保存'); } catch (x) { toast(x.message); } });
@@ -118,17 +118,17 @@ let selectedActivityBand = null;
 let storyIndex = 0; let storySegmentIndex = 0; let speechBusy = false; let aiPreview = null; let aiGenerateMutationId = '';
 const currentStory = () => stories[storyIndex];
 $("#storySelect").innerHTML = stories.map((s, i) => '<option value="' + i + '">' + esc(s.title) + " · " + s.segments.length + " 段</option>").join("");
-$("#storySelect").addEventListener("change", e => { stopSpeech(); storyIndex = Number(e.target.value); storySegmentIndex = 0; renderStory(); });
+$("#storySelect").addEventListener("change", e => { stopSpeech(); storyIndex = Number(e.target.value); storySegmentIndex = 0; renderStory(); rememberCompanion('story'); });
 function renderStory() { const story = currentStory();
 $("#storySelect").innerHTML = stories.map((s, i) => '<option value="' + i + '">' + esc(s.title) + " · " + s.segments.length + " 段</option>").join("");
 for (const id of ["storyEdit", "storyDelete", "storyExport", "storySpeak", "storyStop", "storySelect"]) $("#" + id).disabled = !story;
 if (!story) { $("#storyTitle").textContent = storyLibraryLoaded ? "故事库还是空的" : "正在读取故事库"; $("#storySubtitle").textContent = "可以新增故事，或导入故事文件。"; $("#storySegments").replaceChildren(); $("#storyCount").textContent = "0 / 0"; $("#storyPrev").disabled = true; $("#storyNext").disabled = true; return; }
 storySegmentIndex = Math.min(storySegmentIndex, story.segments.length - 1); const segment = story.segments[storySegmentIndex]; $('#storyTitle').textContent = story.title; $('#storySubtitle').textContent = story.subtitle; $('#storyCount').textContent = `${storySegmentIndex + 1} / ${story.segments.length}`; const box = $('#storySegments'); box.replaceChildren(); const zh = document.createElement('p'); zh.className = 'story-zh'; zh.textContent = segment.zh; const en = document.createElement('p'); en.className = 'story-en'; en.textContent = segment.en; const prompt = document.createElement('p'); prompt.className = 'story-prompt'; prompt.textContent = segment.prompt ? '一起读 · ' + segment.prompt : ''; box.append(zh, en); if (segment.prompt) box.append(prompt); $('#storySelect').value = String(storyIndex); $('#storyPrev').disabled = storySegmentIndex === 0; $('#storyNext').disabled = storySegmentIndex === story.segments.length - 1; }
 function stopSpeech() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); speechBusy = false; $('#storySpeak').textContent = '朗读这一段'; }
-function speakStory() { if (!currentStory()) return; stopSpeech(); if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') { $('#voiceFallback').hidden = false; return; } const segment = currentStory().segments[storySegmentIndex]; const zh = new SpeechSynthesisUtterance(segment.zh); zh.lang = 'zh-CN'; const en = new SpeechSynthesisUtterance(segment.en); en.lang = 'en-US'; const fail = () => { speechBusy = false; $('#voiceFallback').hidden = false; $('#storySpeak').textContent = '朗读这一段'; }; zh.onerror = fail; en.onerror = fail; en.onend = () => { speechBusy = false; $('#storySpeak').textContent = '朗读这一段'; }; speechBusy = true; $('#storySpeak').textContent = '正在朗读…'; window.speechSynthesis.speak(zh); zh.onend = () => { if (speechBusy) window.speechSynthesis.speak(en); }; }
+function speakStory() { if (!currentStory()) return; rememberCompanion('story'); stopSpeech(); if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') { $('#voiceFallback').hidden = false; return; } const segment = currentStory().segments[storySegmentIndex]; const zh = new SpeechSynthesisUtterance(segment.zh); zh.lang = 'zh-CN'; const en = new SpeechSynthesisUtterance(segment.en); en.lang = 'en-US'; const fail = () => { speechBusy = false; $('#voiceFallback').hidden = false; $('#storySpeak').textContent = '朗读这一段'; }; zh.onerror = fail; en.onerror = fail; en.onend = () => { speechBusy = false; $('#storySpeak').textContent = '朗读这一段'; }; speechBusy = true; $('#storySpeak').textContent = '正在朗读…'; window.speechSynthesis.speak(zh); zh.onend = () => { if (speechBusy) window.speechSynthesis.speak(en); }; }
 function renderOfficialResources() { const box = $('#officialResources'); box.replaceChildren(); for (const resource of officialResources) { const card = document.createElement('article'); card.className = 'resource-card'; const title = document.createElement('strong'); title.textContent = resource.title; const desc = document.createElement('small'); desc.textContent = resource.description; const actions = document.createElement('div'); actions.className = 'resource-actions'; const link = document.createElement('a'); link.href = resource.url; link.target = '_blank'; link.rel = 'noreferrer'; link.textContent = '打开官方页面'; const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'mini'; favorite.textContent = '收藏'; favorite.addEventListener('click', () => fillFavorite({ title: resource.title, url: resource.url, kind: 'official' })); actions.append(link, favorite); card.append(title, desc, actions); box.append(card); } }
 function resetFavorite() { const form = $('#favoriteForm'); form.reset(); form.elements.id.value = ''; form.elements.version.value = ''; $('#favoriteCancel').hidden = true; }
-function fillFavorite(item) { const form = $('#favoriteForm'); form.elements.id.value = item.id || ''; form.elements.version.value = item.version || ''; form.elements.title.value = item.title || ''; form.elements.url.value = item.url || ''; form.elements.kind.value = item.kind || 'other'; $('#favoriteCancel').hidden = !item.id; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); form.elements.title.focus(); }
+function fillFavorite(item) { $('#favoriteManage').open = true; const form = $('#favoriteForm'); form.elements.id.value = item.id || ''; form.elements.version.value = item.version || ''; form.elements.title.value = item.title || ''; form.elements.url.value = item.url || ''; form.elements.kind.value = item.kind || 'other'; $('#favoriteCancel').hidden = !item.id; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); form.elements.title.focus(); }
 function renderFavorites() { const box = $('#favoriteList'); box.replaceChildren(); const favorites = state?.favorites || []; if (!favorites.length) { const empty = document.createElement('p'); empty.className = 'muted small'; empty.textContent = '还没有收藏链接。'; box.append(empty); return; } for (const item of favorites) { const row = document.createElement('div'); row.className = 'favorite-row'; const main = document.createElement('div'); const link = document.createElement('a'); link.href = item.url; link.target = '_blank'; link.rel = 'noreferrer'; link.textContent = item.title; const meta = document.createElement('small'); meta.textContent = `${item.kind === 'official' ? '官方资源' : item.kind === 'story' ? '故事' : '其他'} · ${new URL(item.url).host}`; main.append(link, meta); const actions = document.createElement('div'); actions.className = 'event-actions'; const edit = document.createElement('button'); edit.className = 'mini'; edit.type = 'button'; edit.textContent = '修改'; edit.addEventListener('click', () => fillFavorite(item)); const remove = document.createElement('button'); remove.className = 'mini'; remove.type = 'button'; remove.textContent = '删除'; remove.addEventListener('click', async () => { if (!confirm('删除这个收藏？')) return; try { await api(`/api/favorites/${item.id}`, { method: 'DELETE', body: JSON.stringify({ mutationId: uid(), expectedVersion: item.version }) }); await loadState(); toast('收藏已删除'); } catch (e) { toast(e.message); } }); actions.append(edit, remove); row.append(main, actions); box.append(row); } }
 function ageMonthsNumber(birthDate) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate || "")) return null;
@@ -149,7 +149,6 @@ function renderInteractions() {
   $("#activityMode").textContent = selectedActivityBand === null ? "按出生日期计算；选择与宝宝当前能力相符的玩法。" : "正在浏览其他阶段，未更改档案，也不代表宝宝已适合这些动作。";
   $("#activityReturn").hidden = selectedActivityBand === null;
   const box = $("#interactionCards");
-  const opened = new Set([...box.querySelectorAll("details[open]")].map(d => d.dataset.title));
   box.replaceChildren();
   if (!band) {
     $("#activityFocus").textContent = months === null ? "先确定月龄，再选择适合的活动" : "当前内容覆盖出生至未满 24 个月";
@@ -160,13 +159,14 @@ function renderInteractions() {
   $("#activityFocus").textContent = band.focus;
   $("#activityAbilities").innerHTML = band.abilities.map(x => "<span>" + esc(x) + "</span>").join("");
   $("#activityPace").textContent = band.min < 12 ? "分散到清醒、舒适的片刻，每次先短一点，跟随宝宝反应。WHO 建议未能移动的婴儿每天累计至少 30 分钟清醒俯卧活动，分多次进行；逐渐适应，不强撑、不一次做完。" : "把活动穿插进日常生活。WHO 建议 1–2 岁每天累计至少 180 分钟多种身体活动，分散进行，包括走动和玩耍，不是连续训练。";
-  band.activities.forEach((activity, index) => {
-    const card = document.createElement("details"); card.className = "activity-card"; card.dataset.title = activity.title;
-    card.open = opened.size ? opened.has(activity.title) : index === 0;
-    card.innerHTML = '<summary><span class="activity-kind">' + esc(activity.kind) + '</span><strong>' + esc(activity.title) + '</strong><span class="activity-goal">练习 · ' + esc(activity.goal) + '</span><span class="activity-expand" aria-hidden="true">＋</span></summary>' +
-      '<div class="activity-body"><p><b>什么时候适合</b>' + esc(activity.ready) + '</p><b>陪宝宝这样做</b><ol>' + activity.steps.map(s => "<li>" + esc(s) + "</li>").join("") + '</ol><p><b>观察与调整</b>' + esc(activity.observe) + '</p><p class="activity-safety"><b>注意</b>' + esc(activity.safety) + '</p></div>';
+  band.activities.forEach((activity) => {
+    const card = document.createElement('button'); card.type = 'button'; card.className = 'companion-content-row';
+    card.innerHTML = '<div><strong>' + esc(activity.title) + '</strong><small>' + esc(activity.kind) + ' · ' + esc(activity.goal) + '</small></div><span aria-hidden="true">›</span>';
+    card.addEventListener('click', () => { selectedActivityTitle = activity.title; $('#activityDetail').innerHTML = activityDetailMarkup(activity); openCompanionPage('activity'); });
     box.append(card);
   });
+  const selectedActivity = band.activities.find(a => a.title === selectedActivityTitle);
+  if (selectedActivity) $('#activityDetail').innerHTML = activityDetailMarkup(selectedActivity);
   const source = $("#activitySource"); source.hidden = false; source.href = band.source; source.textContent = band.sourceLabel + " · 查看分龄活动依据";
 }
 $("#activityAge").addEventListener("change", e => { selectedActivityBand = e.target.value === "current" ? null : Number(e.target.value); $("#interactionCards").replaceChildren(); renderInteractions(); });
@@ -387,23 +387,25 @@ function renderVideos() {
   select.replaceChildren(new Option("请选择视频", ""));
   videoItems.forEach((item, index) => select.add(new Option((index + 1) + ". " + item.title, item.id)));
   select.value = selected >= 0 ? videoCurrentId : ""; select.disabled = videoItems.length === 0;
-  empty.hidden = videoItems.length > 0 || selected >= 0; player.hidden = selected < 0; now.hidden = selected < 0; transport.hidden = selected < 0;
+  empty.hidden = selected >= 0; empty.textContent = videoItems.length ? "选择一首视频开始播放" : "还没有发现 MP4 文件"; player.hidden = selected < 0; now.hidden = selected < 0; transport.hidden = selected < 0;
   if (selected >= 0) {
     const item = videoItems[selected]; $("#videoTitle").textContent = item.title; $("#videoMeta").textContent = videoBytes(item.size_bytes) + (item.updated_at ? " · 更新于 " + videoDate(item.updated_at) : "");
     $("#videoPosition").textContent = (selected + 1) + " / " + videoItems.length; $("#videoPrev").disabled = selected === 0; $("#videoNext").disabled = selected === videoItems.length - 1;
   }
   if (!videoItems.length) { $("#videoLibraryStatus").textContent = "目录中没有 MP4。当前目录：" + videoDirectoryHint + "。把文件放入后刷新列表。"; return; }
-  $("#videoLibraryStatus").textContent = "已发现 " + videoItems.length + " 个 MP4 · 目录：" + (videoDirectoryHint || "DATA_DIR/videos");
+  $("#videoLibraryStatus").textContent = "共 " + videoItems.length + " 个视频";
 }
 let videoDirectoryHint = "DATA_DIR/videos";
 async function loadVideoLibrary() {
   if (videoLibraryLoading) return false; videoLibraryLoading = true;
-  try { const result = await api("/api/videos"); videoItems = Array.isArray(result.videos) ? result.videos : []; videoDirectoryHint = result.directory_hint || "DATA_DIR/videos"; videoLibraryLoaded = true; if (!videoItems.some(item => item.id === videoCurrentId)) { videoCurrentId = ""; videoIndex = -1; $("#videoPlayer").removeAttribute("src"); $("#videoPlayer").load(); } renderVideos(); return true; }
+  try { const result = await api("/api/videos"); videoItems = Array.isArray(result.videos) ? result.videos : []; videoDirectoryHint = result.directory_hint || "DATA_DIR/videos"; videoLibraryLoaded = true; if (!videoItems.some(item => item.id === videoCurrentId)) { videoCurrentId = ""; videoIndex = -1; $("#videoPlayer").removeAttribute("src"); $("#videoPlayer").load(); } renderVideos(); renderCompanionResume(); return true; }
   catch (e) { $("#videoLibraryStatus").textContent = "视频列表读取失败：" + e.message + "。"; return false; }
   finally { videoLibraryLoading = false; }
 }
-function selectVideo(index, autoplay = false) {
-  const item = videoItems[index]; if (!item) return; const player = $("#videoPlayer"); videoIndex = index; videoCurrentId = item.id; player.src = item.stream; player.load(); renderVideos();
+function selectVideo(index, autoplay = false, startTime = 0) {
+  const item = videoItems[index]; if (!item) return; const player = $("#videoPlayer"); videoIndex = index; videoCurrentId = item.id; player.src = item.stream;
+  player.onloadedmetadata = () => { if (videoCurrentId === item.id && startTime > 0 && Number.isFinite(player.duration)) { player.currentTime = Math.min(startTime, Math.max(0, player.duration - 0.1)); rememberCompanion('video'); } };
+  player.load(); renderVideos(); rememberCompanion('video');
   if (autoplay) { const promise = player.play(); promise?.catch(() => { $("#videoLibraryStatus").textContent = "已选择《" + item.title + "》，请点击播放器开始。"; }); }
 }
 $("#videoRefresh").addEventListener("click", () => loadVideoLibrary());
@@ -411,10 +413,10 @@ $("#videoSelect").addEventListener("change", (event) => { const index = videoIte
 $("#videoPrev").addEventListener("click", () => { if (videoIndex > 0) selectVideo(videoIndex - 1, true); });
 $("#videoNext").addEventListener("click", () => { if (videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); });
 $("#videoStop").addEventListener("click", () => { const player = $("#videoPlayer"); player.pause(); player.currentTime = 0; $("#videoLibraryStatus").textContent = "已停止播放 · " + (videoItems[videoIndex]?.title || ""); });
-$("#videoPlayer").addEventListener("ended", () => { if (videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); else $("#videoLibraryStatus").textContent = "已播放到列表末尾"; });
+$("#videoPlayer").addEventListener("ended", () => { if ($('#videoAutoNext').checked && videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); else $("#videoLibraryStatus").textContent = "本首播放结束"; });
 $("#videoPlayer").addEventListener("error", () => { if (videoCurrentId) $("#videoLibraryStatus").textContent = "这个文件无法播放，请确认是 MP4（H.264 视频 + AAC 音频）。"; });
-function renderCompanion() { if (!storyLibraryLoaded) loadStoryLibrary(); if (!videoLibraryLoaded) loadVideoLibrary(); renderStory(); renderOfficialResources(); renderFavorites(); renderInteractions(); }
-$('#storyPrev').addEventListener('click', () => { if (storySegmentIndex > 0) storySegmentIndex -= 1; stopSpeech(); renderStory(); }); $('#storyNext').addEventListener('click', () => { if (currentStory() && storySegmentIndex < currentStory().segments.length - 1) storySegmentIndex += 1; stopSpeech(); renderStory(); }); $('#storySpeak').addEventListener('click', speakStory); $('#storyStop').addEventListener('click', stopSpeech); $('#favoriteCancel').addEventListener('click', resetFavorite);
+function renderCompanion() { if (!storyLibraryLoaded) loadStoryLibrary(); if (!videoLibraryLoaded) loadVideoLibrary(); renderStory(); renderOfficialResources(); renderFavorites(); renderInteractions(); renderStoryCatalogue(); renderCompanionResume(); if (companionPage === "home") $("#companionPageSubtitle").textContent = ageText(state.profile.birth_date) + " · 跟着兴趣，慢慢来"; }
+$('#storyPrev').addEventListener('click', () => { if (storySegmentIndex > 0) storySegmentIndex -= 1; stopSpeech(); renderStory(); rememberCompanion('story'); }); $('#storyNext').addEventListener('click', () => { if (currentStory() && storySegmentIndex < currentStory().segments.length - 1) storySegmentIndex += 1; stopSpeech(); renderStory(); rememberCompanion('story'); }); $('#storySpeak').addEventListener('click', speakStory); $('#storyStop').addEventListener('click', stopSpeech); $('#favoriteCancel').addEventListener('click', resetFavorite);
 $('#favoriteForm').addEventListener('submit', async (e) => { e.preventDefault(); const form = e.currentTarget; const submit = form.querySelector('button.primary'); const values = formObject(form); const id = values.id; const body = { mutationId: uid(), url: values.url, title: values.title, kind: values.kind }; if (id) body.expectedVersion = Number(values.version); submit.disabled = true; try { await api(id ? `/api/favorites/${id}` : '/api/favorites', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) }); resetFavorite(); await loadState(); toast('收藏已保存'); } catch (x) { toast(x.message); } finally { submit.disabled = false; } });
 const aiForm = $('#aiForm'); const todayShanghai = () => { const p = shanghaiDateParts(); return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`; }; aiForm.elements.startDate.value = todayShanghai(); aiForm.elements.endDate.value = todayShanghai();
 let aiPreviewRevision = 0;
@@ -430,11 +432,15 @@ async function loadStoryLibrary(preferredId) {
     stories = result.stories; storyLibraryLoaded = true;
     const selected = stories.findIndex(s => s.id === (preferredId || old?.id)); storyIndex = Math.max(0, selected);
     if (old?.id !== currentStory()?.id || old?.version !== currentStory()?.version) { stopSpeech(); storySegmentIndex = 0; }
-    $("#storyLibraryStatus").textContent = "故事库 · " + stories.length + " 篇 · 保存在家庭数据中"; renderStory(); return true;
+    if (!old && !preferredId && companionProgress.story) {
+      const saved = companionProgress.story; const restored = stories.findIndex(s => s.id === saved.id);
+      if (restored >= 0) { storyIndex = restored; storySegmentIndex = Math.max(0, Math.min(Number(saved.segment) || 0, currentStory().segments.length - 1)); }
+    }
+    $("#storyLibraryStatus").textContent = "故事库 · " + stories.length + " 篇 · 保存在家庭数据中"; renderStory(); renderStoryCatalogue(); renderCompanionResume(); return true;
   } catch (e) { $("#storyLibraryStatus").textContent = "故事库未更新：" + e.message + "。可点击页面刷新重试。"; return false; }
   finally { storyLibraryLoading = false; }
 }
-$("#companionRefresh").addEventListener("click", () => loadStoryLibrary());
+$("#companionRefresh").addEventListener("click", () => companionPage === "video" ? loadVideoLibrary() : loadStoryLibrary());
 let editingStory = null; let storyDraftDirty = false; let storySaving = false;
 let storyPendingSignature = ""; let storyPendingId = "";
 function storyRequestBody(path, value) { const signature = JSON.stringify({ path, value }); if (signature !== storyPendingSignature) { storyPendingSignature = signature; storyPendingId = uid(); } return { ...value, mutationId: storyPendingId }; }
@@ -545,4 +551,122 @@ document.querySelectorAll('[data-health-tab]').forEach((b) => b.addEventListener
 for (const type of ['growth', 'vaccine', 'food']) { healthForm(type).addEventListener('submit', (e) => { e.preventDefault(); saveHealth(type); }); document.querySelector(`[data-health-cancel="${type}"]`).addEventListener('click', () => resetHealthForm(type)); resetHealthForm(type); }
 $('#healthRefresh').addEventListener('click', () => loadState().catch((e) => toast(e.message)));
 $('#foodFilter').addEventListener('input', () => renderHealth());
+let companionPage = 'home';
+let selectedActivityTitle = '';
+let companionProgress = {};
+try { companionProgress = JSON.parse(localStorage.getItem('babymia:companion-progress') || '{}') || {}; } catch {}
+if (typeof companionProgress !== 'object' || Array.isArray(companionProgress)) companionProgress = {};
+const companionPages = {
+  home: ['今天，一起做点什么', '跟着宝宝的兴趣，慢慢来'],
+  play: ['一起玩', '适合当前月龄的运动与互动'],
+  activity: ['活动详情', '先看开始条件，再陪宝宝一起试试'],
+  stories: ['读故事', '选一篇，慢慢读给宝宝听'],
+  reading: ['共读', '中英对照 · 随时停下来'],
+  manage: ['管理故事', '新增、编辑、导入与导出'],
+  video: ['看视频', 'SSS 视频库'],
+  favorites: ['收藏夹', '官方资源与家庭收藏'],
+};
+function rememberCompanion(kind) {
+  if (kind === 'story' && currentStory()) {
+    companionProgress.story = { id: currentStory().id, segment: storySegmentIndex };
+  } else if (kind === 'video' && videoCurrentId) {
+    companionProgress.video = { id: videoCurrentId, time: Math.max(0, $('#videoPlayer').currentTime || 0) };
+  } else return;
+  companionProgress.last = kind;
+  try { localStorage.setItem('babymia:companion-progress', JSON.stringify(companionProgress)); } catch {}
+  renderCompanionResume();
+}
+function renderCompanionResume() {
+  const candidates = companionProgress.last === 'story' ? ['story', 'video'] : ['video', 'story'];
+  let item, kind;
+  for (const candidate of candidates) {
+    const saved = companionProgress[candidate];
+    const found = candidate === 'story' ? stories.find(s => s.id === saved?.id) : videoItems.find(v => v.id === saved?.id);
+    if (found) { item = found; kind = candidate; break; }
+  }
+  $('#companionResume').hidden = !item;
+  if (!item) return;
+  $('#companionResume').dataset.kind = kind;
+  $('#companionResumeKind').textContent = '继续上次 · ' + (kind === 'story' ? '故事' : '视频');
+  $('#companionResumeTitle').textContent = item.title;
+  if (kind === 'story') {
+    const segment = Math.max(0, Math.min(Number(companionProgress.story.segment) || 0, item.segments.length - 1));
+    $('#companionResumeMeta').textContent = `第 ${segment + 1} / ${item.segments.length} 段`;
+    $('#companionResumeButton').textContent = '继续共读 →';
+  } else {
+    const seconds = Math.floor(Number(companionProgress.video.time) || 0);
+    $('#companionResumeMeta').textContent = `上次播放到 ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} · 第 ${videoItems.indexOf(item) + 1} 首`;
+    $('#companionResumeButton').textContent = '继续播放 →';
+  }
+}
+function renderStoryCatalogue() {
+  const box = $('#storyCatalogue');
+  const query = $('#storySearch').value.trim().toLocaleLowerCase();
+  box.replaceChildren();
+  for (const [index, story] of stories.entries()) {
+    if (query && !story.title.toLocaleLowerCase().includes(query)) continue;
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'companion-content-row';
+    const div = document.createElement('div'); const title = document.createElement('strong'); title.textContent = story.title;
+    const meta = document.createElement('small'); meta.textContent = `中英共读 · ${story.segments.length} 段`;
+    const arrow = document.createElement('span'); arrow.textContent = '›'; arrow.setAttribute('aria-hidden', 'true');
+    div.append(title, meta); button.append(div, arrow);
+    button.addEventListener('click', () => {
+      stopSpeech(); storyIndex = index;
+      storySegmentIndex = companionProgress.story?.id === story.id ? Math.max(0, Math.min(Number(companionProgress.story.segment) || 0, story.segments.length - 1)) : 0;
+      renderStory(); rememberCompanion('story'); openCompanionPage('reading');
+    }); box.append(button);
+  }
+  if (!box.children.length) { const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = query ? '没有找到这个故事，换个名称试试。' : storyLibraryLoaded ? '故事库还是空的，可以从管理故事中新增或导入。' : '正在读取故事库…'; box.append(empty); }
+}
+function activityDetailMarkup(activity) {
+  return '<span class="activity-kind">' + esc(activity.kind) + '</span><h3>' + esc(activity.title) + '</h3><p class="muted">练习 · ' + esc(activity.goal) + '</p>' +
+    '<div class="activity-body"><p><b>什么时候适合</b>' + esc(activity.ready) + '</p><b>陪宝宝这样做</b><ol>' + activity.steps.map(s => '<li>' + esc(s) + '</li>').join('') + '</ol><p><b>观察与调整</b>' + esc(activity.observe) + '</p><p class="activity-safety"><b>注意</b>' + esc(activity.safety) + '</p></div>';
+}
+function openCompanionPage(page, push = true, focus = true) {
+  if (!companionPages[page]) page = 'home';
+  companionPage = page;
+  if (page !== 'reading') stopSpeech();
+  if (page === 'video' && !videoCurrentId && videoItems.length) {
+    const saved = companionProgress.video;
+    const index = videoItems.findIndex(item => item.id === saved?.id);
+    selectVideo(index >= 0 ? index : 0, false, index >= 0 ? Number(saved.time) || 0 : 0);
+  }
+  document.querySelectorAll('[data-companion-panel]').forEach(panel => panel.hidden = panel.dataset.companionPanel !== page);
+  $('#companionPageTitle').textContent = page === 'reading' && currentStory() ? currentStory().title : companionPages[page][0];
+  $('#companionPageSubtitle').textContent = page === 'home' ? (state?.profile ? ageText(state.profile.birth_date) + ' · 跟着兴趣，慢慢来' : companionPages.home[1]) : companionPages[page][1];
+  const parent = page === 'activity' ? 'play' : ['reading', 'manage'].includes(page) ? 'stories' : 'home';
+  $('#companionBack').hidden = page === 'home'; $('#companionBack').dataset.parent = parent;
+  $('#companionBack').setAttribute('aria-label', '返回' + (parent === 'home' ? '陪伴首页' : companionPages[parent][0]));
+  $('#companionRefresh').hidden = !['stories', 'manage', 'video'].includes(page);
+  if (push) history.pushState({ view: 'companion', page }, '', location.href);
+  if (focus) { $('#companionPageTitle').focus({ preventScroll: true }); $('#view-companion').scrollIntoView({ block: 'start' }); }
+}
+document.querySelectorAll('[data-companion-page]').forEach(button => button.addEventListener('click', () => openCompanionPage(button.dataset.companionPage)));
+$('#companionBack').addEventListener('click', () => openCompanionPage($('#companionBack').dataset.parent));
+$('#storySearch').addEventListener('input', renderStoryCatalogue);
+$('#companionResumeButton').addEventListener('click', () => {
+  const kind = $('#companionResume').dataset.kind;
+  if (kind === 'story') {
+    const saved = companionProgress.story; const index = stories.findIndex(s => s.id === saved?.id); if (index < 0) return;
+    stopSpeech(); storyIndex = index; storySegmentIndex = Math.max(0, Math.min(Number(saved.segment) || 0, currentStory().segments.length - 1)); renderStory(); rememberCompanion('story'); openCompanionPage('reading');
+  } else {
+    const saved = companionProgress.video; const index = videoItems.findIndex(v => v.id === saved?.id); if (index < 0) return;
+    openCompanionPage('video');
+    if (videoCurrentId !== saved.id) selectVideo(index, true, Number(saved.time) || 0);
+    else $('#videoPlayer').play()?.catch(() => toast('请点击播放器开始播放'));
+  }
+});
+let videoProgressSavedAt = 0;
+$('#videoPlayer').addEventListener('timeupdate', () => {
+  if (Date.now() - videoProgressSavedAt < 5000) return;
+  videoProgressSavedAt = Date.now(); rememberCompanion('video');
+});
+['pause', 'playing'].forEach(event => $('#videoPlayer').addEventListener(event, () => rememberCompanion('video')));
+try { $('#videoAutoNext').checked = localStorage.getItem('babymia:video-autonext') !== 'false'; } catch {}
+$('#videoAutoNext').addEventListener('change', () => { try { localStorage.setItem('babymia:video-autonext', String($('#videoAutoNext').checked)); } catch {} });
+window.addEventListener('pagehide', () => { if (videoCurrentId && !$('#videoPlayer').paused) rememberCompanion('video'); });
+history.replaceState({ view: 'home' }, '', location.href);
+window.addEventListener('popstate', event => { const target = event.state || { view: 'home' }; switchView(target.view || 'home', false); if (target.view === 'companion') openCompanionPage(target.page || 'home', false); });
+openCompanionPage('home', false, false);
+
 setInterval(() => state && loadState().catch(() => { if (navigator.onLine === false) toast('网络未连接，记录表单仍保留'); }), 30000); boot();
