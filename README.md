@@ -65,7 +65,7 @@ npm start
 
 ## SSS MP4 视频
 
-“陪伴 → 看视频”中的 SSS 视频库直接播放 NAS 上的 MP4 文件。默认目录是 DATA_DIR/videos，本机运行时把文件放入 data/videos/，打开“陪伴 → 看视频”点击“刷新”即可。文件只通过网页按 Range 分段读取，不复制进 SQLite，也不需要 Emby；播放器支持拖动进度、全屏和播完自动播放下一条。
+“陪伴 → 看视频”中的 SSS 视频库直接播放 NAS 上的 MP4 文件。默认目录是 DATA_DIR/videos，本机运行时把文件放入 data/videos/，打开“陪伴 → 看视频”点击“刷新”即可。文件只通过网页按 Range 分段读取，不复制进 SQLite，也不需要 Emby；播放器支持拖动进度、全屏，并支持顺序播放、单曲循环和播完停止三种模式；当前设备会记住播放模式。
 
 Docker / NAS 使用现有 ./data:/app/data 映射时，把 MP4 放入 NAS 数据目录的 videos/ 子目录。若希望把媒体单独放在另一个 NAS 共享目录，可设置 VIDEO_DIR=/app/videos，并增加 ./videos:/app/videos 映射。页面只列出目录顶层的 .mp4 文件；建议使用手机兼容性较好的 H.264 视频与 AAC 音频。视频文件不进入 JSON / SQLite 备份，NAS 需要另外备份媒体目录。
 
@@ -87,11 +87,11 @@ docker compose up -d
 如需临时切回 Docker Hub，可在构建前设置 `NODE_IMAGE=node:22.23.1-bookworm-slim`。在有 Docker 的机器构建并导出镜像：
 
 ```powershell
-docker build -t babymia:3.9.0 .
-docker save babymia:3.9.0 -o babymia-3.9.0.tar
+docker build -t babymia:3.9.1 .
+docker save babymia:3.9.1 -o babymia-3.9.1.tar
 ```
 
-在 NAS Container Station 导入 `babymia-3.9.0.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.9.0` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
+在 NAS Container Station 导入 `babymia-3.9.1.tar`，创建 `/app/data` 到 NAS 数据目录的持久化映射，并将 Compose 中的 `build` 配置替换为 `image: babymia:3.9.1` 后启动。映射 8095 端口后访问 NAS 地址。`reference/who-growth.json` 会随镜像复制到运行目录。外网访问请放在 HTTPS 或安全组网之后；当前服务适合家庭内网。
 
 AI 摘要默认关闭。需要时在服务器环境变量配置兼容 Chat Completions 的 `AI_ENDPOINT`、`AI_API_KEY` 和 `AI_MODEL`；endpoint 只接受 HTTPS，HTTP 仅允许本机 mock。密钥只在服务端使用，页面只显示 endpoint 主机和模型。每次摘要都先由家庭成员选择范围和类型并预览，点击“手动生成”后才发送同一份脱敏快照；不自动外发、不发送姓名、署名、备注或成长/疫苗/辅食记录。未配置、超时或返回错误时显示明确状态，不伪造摘要。
 

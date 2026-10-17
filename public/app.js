@@ -413,7 +413,14 @@ $("#videoSelect").addEventListener("change", (event) => { const index = videoIte
 $("#videoPrev").addEventListener("click", () => { if (videoIndex > 0) selectVideo(videoIndex - 1, true); });
 $("#videoNext").addEventListener("click", () => { if (videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); });
 $("#videoStop").addEventListener("click", () => { const player = $("#videoPlayer"); player.pause(); player.currentTime = 0; $("#videoLibraryStatus").textContent = "已停止播放 · " + (videoItems[videoIndex]?.title || ""); });
-$("#videoPlayer").addEventListener("ended", () => { if ($('#videoAutoNext').checked && videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true); else $("#videoLibraryStatus").textContent = "本首播放结束"; });
+$('#videoPlayer').addEventListener('ended', () => {
+  const mode = $('#videoPlaybackMode').value;
+  if (mode === 'single' && videoCurrentId) {
+    const player = $('#videoPlayer'); player.currentTime = 0;
+    player.play()?.catch(() => { $('#videoLibraryStatus').textContent = '请点击播放器继续播放'; });
+  } else if (mode === 'sequence' && videoIndex + 1 < videoItems.length) selectVideo(videoIndex + 1, true);
+  else $('#videoLibraryStatus').textContent = '本首播放结束';
+});
 $("#videoPlayer").addEventListener("error", () => { if (videoCurrentId) $("#videoLibraryStatus").textContent = "这个文件无法播放，请确认是 MP4（H.264 视频 + AAC 音频）。"; });
 function renderCompanion() { if (!storyLibraryLoaded) loadStoryLibrary(); if (!videoLibraryLoaded) loadVideoLibrary(); renderStory(); renderOfficialResources(); renderFavorites(); renderInteractions(); renderStoryCatalogue(); renderCompanionResume(); if (companionPage === "home") $("#companionPageSubtitle").textContent = ageText(state.profile.birth_date) + " · 跟着兴趣，慢慢来"; }
 $('#storyPrev').addEventListener('click', () => { if (storySegmentIndex > 0) storySegmentIndex -= 1; stopSpeech(); renderStory(); rememberCompanion('story'); }); $('#storyNext').addEventListener('click', () => { if (currentStory() && storySegmentIndex < currentStory().segments.length - 1) storySegmentIndex += 1; stopSpeech(); renderStory(); rememberCompanion('story'); }); $('#storySpeak').addEventListener('click', speakStory); $('#storyStop').addEventListener('click', stopSpeech); $('#favoriteCancel').addEventListener('click', resetFavorite);
@@ -662,8 +669,15 @@ $('#videoPlayer').addEventListener('timeupdate', () => {
   videoProgressSavedAt = Date.now(); rememberCompanion('video');
 });
 ['pause', 'playing'].forEach(event => $('#videoPlayer').addEventListener(event, () => rememberCompanion('video')));
-try { $('#videoAutoNext').checked = localStorage.getItem('babymia:video-autonext') !== 'false'; } catch {}
-$('#videoAutoNext').addEventListener('change', () => { try { localStorage.setItem('babymia:video-autonext', String($('#videoAutoNext').checked)); } catch {} });
+try {
+  const savedMode = localStorage.getItem('babymia:video-mode');
+  $('#videoPlaybackMode').value = ['sequence', 'single', 'stop'].includes(savedMode) ? savedMode : localStorage.getItem('babymia:video-autonext') === 'false' ? 'stop' : 'sequence';
+} catch {}
+$('#videoPlayer').loop = $('#videoPlaybackMode').value === 'single';
+$('#videoPlaybackMode').addEventListener('change', () => {
+  $('#videoPlayer').loop = $('#videoPlaybackMode').value === 'single';
+  try { localStorage.setItem('babymia:video-mode', $('#videoPlaybackMode').value); } catch {}
+});
 window.addEventListener('pagehide', () => { if (videoCurrentId && !$('#videoPlayer').paused) rememberCompanion('video'); });
 history.replaceState({ view: 'home' }, '', location.href);
 window.addEventListener('popstate', event => { const target = event.state || { view: 'home' }; switchView(target.view || 'home', false); if (target.view === 'companion') openCompanionPage(target.page || 'home', false); });
